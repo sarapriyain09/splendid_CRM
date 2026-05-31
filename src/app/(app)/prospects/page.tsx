@@ -10,6 +10,105 @@ function scoreColor(score: number) {
   return 'bg-slate-800 text-slate-400';
 }
 
+function buildSMS(prospect: Lead): string {
+  const name    = prospect.company_name;
+  const reasons = (prospect.notes ?? '').split(' · ').filter(Boolean);
+  const hasNoWebsite = reasons.some(r => r.toLowerCase().includes('no website'));
+  if (hasNoWebsite) {
+    return `Hi ${name}, I'm from Splendid Technology. We build professional websites from £499 to help you get found online. Free 15min chat? splendidtechnology.co.uk`;
+  }
+  return `Hi ${name}, I spotted a few issues with your website that could be costing you customers. Free 15min chat to fix them? Splendid Technology - splendidtechnology.co.uk`;
+}
+
+// ─── SMS compose modal ───────────────────────────────────────────────────────
+function SmsPanel({ prospect, onClose, onSent }: {
+  prospect: Lead;
+  onClose: () => void;
+  onSent: () => void;
+}) {
+  const [to,      setTo]      = useState(prospect.phone ?? '');
+  const [message, setMessage] = useState(buildSMS(prospect));
+  const [sending, setSending] = useState(false);
+  const [error,   setError]   = useState('');
+  const [sent,    setSent]    = useState(false);
+  const [notConfigured, setNotConfigured] = useState(false);
+
+  const charsLeft = 160 - message.length;
+
+  async function send() {
+    if (!to.trim() || !message.trim()) return;
+    setSending(true); setError('');
+    const res = await fetch('/api/prospects/send-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId: prospect.id, to, message }),
+    });
+    const data = await res.json();
+    if (res.status === 503 && data.error === 'not_configured') {
+      setNotConfigured(true); setSending(false); return;
+    }
+    if (!res.ok) { setError(data.error ?? 'Failed to send'); setSending(false); return; }
+    setSent(true);
+    setTimeout(() => { onSent(); onClose(); }, 1500);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+          <div>
+            <h2 className="text-base font-bold text-slate-100">Send SMS</h2>
+            <p className="text-xs text-slate-500">{prospect.company_name}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-xl leading-none">✕</button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          {notConfigured && (
+            <div className="bg-amber-900/20 border border-amber-700 rounded-xl p-4 space-y-2">
+              <div className="text-amber-300 font-semibold text-sm">⚠ Twilio Not Configured</div>
+              <p className="text-xs text-slate-400">Add these to <span className="font-mono text-slate-300">.env.local</span> and restart:</p>
+              <pre className="text-xs text-slate-300 bg-slate-800 rounded p-3 font-mono leading-relaxed">{`TWILIO_ACCOUNT_SID=ACxxxxxxxxxxx\nTWILIO_AUTH_TOKEN=your-auth-token\nTWILIO_FROM_NUMBER=+441234567890`}</pre>
+              <p className="text-xs text-slate-500">Sign up at <strong className="text-slate-400">twilio.com</strong> → get a UK number (~£1/month).</p>
+            </div>
+          )}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-400">To (phone number)</label>
+            <input type="tel" value={to} onChange={e => setTo(e.target.value)}
+              placeholder="07700 900000"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+            <p className="text-[10px] text-slate-600">UK numbers auto-converted to +44 format</p>
+          </div>
+          <div className="space-y-1">
+            <div className="flex justify-between">
+              <label className="text-xs font-medium text-slate-400">Message</label>
+              <span className={`text-[10px] ${charsLeft < 0 ? 'text-red-400' : charsLeft < 20 ? 'text-amber-400' : 'text-slate-600'}`}>
+                {charsLeft} chars left
+              </span>
+            </div>
+            <textarea rows={5} value={message} onChange={e => setMessage(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-blue-500 resize-none leading-relaxed" />
+          </div>
+          {error && <p className="text-xs text-red-400">{error}</p>}
+        </div>
+        <div className="px-6 py-4 border-t border-slate-800 flex items-center justify-between">
+          <p className="text-xs text-slate-600">Sent via Twilio · ~4p per SMS</p>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors">Cancel</button>
+            {sent ? (
+              <span className="px-5 py-2 text-sm font-medium text-emerald-400">✓ Sent!</span>
+            ) : (
+              <button onClick={send} disabled={sending || !to.trim() || charsLeft < 0}
+                className="px-5 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-semibold rounded-lg transition-colors">
+                {sending ? 'Sending…' : '📱 Send SMS'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function buildEmail(prospect: Lead): { subject: string; message: string } {
   const name    = prospect.company_name;
   const reasons = (prospect.notes ?? '').split(' · ').filter(Boolean);
@@ -127,6 +226,7 @@ export default function ProspectsPage() {
   const [loading,         setLoading]         = useState(true);
   const [convertingId,    setConvertingId]    = useState<number | null>(null);
   const [emailTarget,     setEmailTarget]     = useState<Lead | null>(null);
+  const [smsTarget,       setSmsTarget]       = useState<Lead | null>(null);
   const [filterContacted, setFilterContacted] = useState<'all' | 'contacted' | 'not_contacted'>('all');
 
   const fetchProspects = useCallback(async () => {
@@ -164,6 +264,9 @@ export default function ProspectsPage() {
     <div className="space-y-5">
       {emailTarget && (
         <EmailPanel prospect={emailTarget} onClose={() => setEmailTarget(null)} onSent={fetchProspects} />
+      )}
+      {smsTarget && (
+        <SmsPanel prospect={smsTarget} onClose={() => setSmsTarget(null)} onSent={fetchProspects} />
       )}
 
       {/* Header */}
@@ -293,6 +396,16 @@ export default function ProspectsPage() {
                           }`}>
                           {p.contacted_at ? '✉ Send Again' : '✉ Send Email'}
                         </button>
+                        {p.phone && (
+                          <button onClick={() => setSmsTarget(p)}
+                            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                              p.sms_sent_at
+                                ? 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                                : 'bg-violet-700 hover:bg-violet-600 text-white'
+                            }`}>
+                            {p.sms_sent_at ? '📱 SMS Again' : '📱 Send SMS'}
+                          </button>
+                        )}
                         <button onClick={() => convertToLead(p.id)} disabled={convertingId === p.id}
                           className="text-xs px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-700 disabled:text-slate-500 text-emerald-100 rounded-lg font-medium transition-colors whitespace-nowrap">
                           {convertingId === p.id ? 'Converting…' : '→ Convert to Lead'}

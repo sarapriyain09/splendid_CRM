@@ -52,6 +52,8 @@ export interface Lead {
   updated_at: string;
   contacted_at: string | null;
   outreach_email: string | null;
+  sms_sent_at: string | null;
+  sms_message: string | null;
 }
 
 export interface Contact {

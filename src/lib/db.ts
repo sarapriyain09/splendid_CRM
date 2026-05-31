@@ -118,4 +118,10 @@ function initSchema(db: Database.Database) {
   if (!colNames.includes('outreach_email')) {
     db.exec(`ALTER TABLE leads ADD COLUMN outreach_email TEXT`);
   }
+  if (!colNames.includes('sms_sent_at')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN sms_sent_at TEXT`);
+  }
+  if (!colNames.includes('sms_message')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN sms_message TEXT`);
+  }
 }
