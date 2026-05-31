@@ -113,8 +113,8 @@ function PushButton({ lead }: { lead: Lead }) {
       sic_label:      SIC_DESCRIPTIONS[c.sic_codes?.[0] ?? ''] ?? null,
       source:         'companies_house',
       lead_score:     lead.leadScore,
-      stage:          'lead',
-      status:         'active',
+      stage:          'prospect',
+      status:         'new',
       location:       loc !== '—' ? loc : null,
       postcode:       c.registered_office_address?.postal_code ?? null,
       incorporated:   c.date_of_creation ?? null,
@@ -131,13 +131,13 @@ function PushButton({ lead }: { lead: Lead }) {
     setState(res.ok ? 'done' : 'idle');
   }
 
-  if (state === 'done')   return <span className="text-xs text-emerald-400 font-medium">✓ Added to CRM</span>;
-  if (state === 'exists') return <span className="text-xs text-amber-400 font-medium">Already in CRM</span>;
+  if (state === 'done')   return <span className="text-xs text-emerald-400 font-medium">✓ Added to Prospects</span>;
+  if (state === 'exists') return <span className="text-xs text-amber-400 font-medium">Already exists</span>;
 
   return (
     <button onClick={push} disabled={state === 'pushing'}
       className="text-xs px-3 py-1.5 bg-blue-700 hover:bg-blue-600 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg font-medium transition-colors whitespace-nowrap">
-      {state === 'pushing' ? 'Saving…' : '+ Push to CRM'}
+      {state === 'pushing' ? 'Saving…' : '+ Push to Prospects'}
     </button>
   );
 }
@@ -203,7 +203,7 @@ function LeadRow({ lead, onCheck }: { lead: Lead; onCheck: () => void }) {
 }
 
 // ─── Main page ─────────────────────────────────────────────────────────────
-export default function LeadGeneratorPage() {
+export default function ProspectGeneratorPage() {
   const [mode, setMode] = useState<'new'|'existing'>('new');
 
   // New companies filters
@@ -302,7 +302,7 @@ export default function LeadGeneratorPage() {
           sic_code: c.sic_codes?.[0] ?? null,
           sic_label: SIC_DESCRIPTIONS[c.sic_codes?.[0] ?? ''] ?? null,
           source: 'companies_house', lead_score: lead.leadScore,
-          stage: 'lead', status: 'active',
+          stage: 'prospect', status: 'new',
           location: loc !== '—' ? loc : null,
           postcode: c.registered_office_address?.postal_code ?? null,
           incorporated: c.date_of_creation ?? null,
@@ -320,8 +320,8 @@ export default function LeadGeneratorPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-100">Lead Generator</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Find companies via Companies House and push them to the CRM</p>
+          <h1 className="text-xl font-bold text-slate-100">Prospect Generator</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Find companies via Companies House and push them to Prospects</p>
         </div>
         {/* Mode toggle */}
         <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1">
@@ -424,7 +424,7 @@ export default function LeadGeneratorPage() {
               </button>
               <button onClick={pushAll}
                 className="text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors">
-                Push All to CRM ({leads.length})
+                Push All to Prospects ({leads.length})
               </button>
             </div>
           </div>

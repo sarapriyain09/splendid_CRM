@@ -5,7 +5,7 @@ import type { Lead, LeadStage } from '@/lib/types';
 import { PIPELINE_STAGES, LEAD_SOURCES } from '@/lib/types';
 
 const STAGE_COLORS: Record<string, string> = {
-  lead:'slate', contacted:'blue', meeting_scheduled:'violet', requirements:'amber',
+  prospect:'purple', lead:'slate', contacted:'blue', meeting_scheduled:'violet', requirements:'amber',
   proposal_sent:'orange', negotiation:'rose', won:'emerald', lost:'red',
 };
 
@@ -13,6 +13,7 @@ function stageBadge(stage: LeadStage) {
   const color = STAGE_COLORS[stage] ?? 'slate';
   const label = PIPELINE_STAGES.find(s => s.key === stage)?.label ?? stage;
   const cls: Record<string, string> = {
+    purple:'bg-purple-900 text-purple-300',
     slate:'bg-slate-800 text-slate-300', blue:'bg-blue-900 text-blue-300',
     violet:'bg-violet-900 text-violet-300', amber:'bg-amber-900 text-amber-300',
     orange:'bg-orange-900 text-orange-300', rose:'bg-rose-900 text-rose-300',

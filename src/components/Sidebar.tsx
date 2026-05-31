@@ -4,13 +4,15 @@ import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 
 const NAV = [
-  { href: '/dashboard', icon: '⊞', label: 'Dashboard'      },
-  { href: '/generate',  icon: '⚡', label: 'Lead Generator' },
-  { href: '/leads',     icon: '◎', label: 'Leads'           },
-  { href: '/pipeline',  icon: '⊟', label: 'Pipeline'        },
-  { href: '/quotes',    icon: '◻', label: 'Quotes'          },
-  { href: '/tasks',     icon: '✓', label: 'Tasks'           },
-  { href: '/settings',  icon: '⚙', label: 'Settings'        },
+  { href: '/dashboard',       icon: '⊞', label: 'Dashboard'           },
+  { href: '/generate',        icon: '⚡', label: 'Prospect Generator'  },
+  { href: '/prospect-finder', icon: '⊙', label: 'Prospect Finder'     },
+  { href: '/prospects',       icon: '◈', label: 'Prospects'            },
+  { href: '/leads',           icon: '◎', label: 'Leads'                },
+  { href: '/pipeline',        icon: '⊟', label: 'Pipeline'             },
+  { href: '/quotes',          icon: '◻', label: 'Quotes'               },
+  { href: '/tasks',           icon: '✓', label: 'Tasks'                },
+  { href: '/settings',        icon: '⚙', label: 'Settings'             },
 ];
 
 export default function Sidebar() {

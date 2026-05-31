@@ -1,6 +1,7 @@
 export type UserRole = 'admin' | 'user';
 export type LeadStatus = 'new' | 'qualified' | 'rejected';
 export type LeadStage =
+  | 'prospect'
   | 'lead'
   | 'contacted'
   | 'meeting_scheduled'
@@ -49,6 +50,8 @@ export interface Lead {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  contacted_at: string | null;
+  outreach_email: string | null;
 }
 
 export interface Contact {
@@ -118,6 +121,7 @@ export type QuoteDetail = Quote & {
 };
 
 export const PIPELINE_STAGES: { key: LeadStage; label: string }[] = [
+  { key: 'prospect', label: 'Prospect' },
   { key: 'lead', label: 'Lead' },
   { key: 'contacted', label: 'Contacted' },
   { key: 'meeting_scheduled', label: 'Meeting Scheduled' },

@@ -108,4 +108,14 @@ function initSchema(db: Database.Database) {
       amount      REAL    NOT NULL DEFAULT 0
     );
   `);
+
+  // Migrations — safe to run on existing DBs
+  const cols = db.prepare(`PRAGMA table_info(leads)`).all() as { name: string }[];
+  const colNames = cols.map(c => c.name);
+  if (!colNames.includes('contacted_at')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN contacted_at TEXT`);
+  }
+  if (!colNames.includes('outreach_email')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN outreach_email TEXT`);
+  }
 }
