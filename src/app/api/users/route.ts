@@ -7,7 +7,7 @@ export async function GET() {
   const session = await getServerSession();
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const db = getDb();
-  const users = db.prepare(`SELECT id, name, email, role, created_at FROM users ORDER BY created_at ASC`).all();
+  const users = db.prepare(`SELECT id, name, email, role, phone, created_at FROM users ORDER BY created_at ASC`).all();
   return NextResponse.json(users);
 }
 

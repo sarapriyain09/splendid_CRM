@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-interface User { id: number; name: string; email: string; role: string; created_at: string; }
+interface User { id: number; name: string; email: string; role: string; phone?: string; created_at: string; }
 
 export default function SettingsPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -9,6 +9,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingPhone, setEditingPhone] = useState<{ [id: number]: string }>({});
+  const [savingPhone, setSavingPhone] = useState<number | null>(null);
 
   const loadUsers = async () => {
     const res = await fetch('/api/users');
@@ -16,6 +18,17 @@ export default function SettingsPage() {
   };
 
   useEffect(() => { loadUsers(); }, []);
+
+  async function savePhone(userId: number) {
+    setSavingPhone(userId);
+    await fetch(`/api/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: editingPhone[userId] }),
+    });
+    setSavingPhone(null);
+    loadUsers();
+  }
 
   async function addUser(e: React.FormEvent) {
     e.preventDefault();
@@ -53,10 +66,25 @@ export default function SettingsPage() {
         <h2 className="text-sm font-semibold text-slate-300">Team Members</h2>
         <div className="bg-slate-900 border border-slate-800 rounded-xl divide-y divide-slate-800">
           {users.map(u => (
-            <div key={u.id} className="flex items-center justify-between px-4 py-3">
+            <div key={u.id} className="flex items-center justify-between gap-4 px-4 py-3 flex-wrap">
               <div>
                 <div className="text-sm font-medium text-slate-200">{u.name}</div>
                 <div className="text-xs text-slate-500">{u.email} · {u.role}</div>
+              </div>
+              <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-xs">
+                <input
+                  type="tel"
+                  placeholder="Phone for click-to-call"
+                  value={editingPhone[u.id] ?? u.phone ?? ''}
+                  onChange={e => setEditingPhone(p => ({ ...p, [u.id]: e.target.value }))}
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  onClick={() => savePhone(u.id)}
+                  disabled={savingPhone === u.id}
+                  className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 disabled:bg-slate-700 text-white text-xs rounded-lg transition-colors whitespace-nowrap">
+                  {savingPhone === u.id ? '…' : 'Save'}
+                </button>
               </div>
               <button onClick={() => deleteUser(u.id)}
                 className="text-slate-600 hover:text-red-400 text-sm transition-colors">

@@ -35,7 +35,7 @@ function websiteBadge(status: WebsiteStatus, url?: string) {
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────
-function OfficersCell({ companyNumber }: { companyNumber: string }) {
+function OfficersCell({ companyNumber, companyName }: { companyNumber: string; companyName: string }) {
   const [officers, setOfficers] = useState<Officer[] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -55,13 +55,20 @@ function OfficersCell({ companyNumber }: { companyNumber: string }) {
   );
 
   return (
-    <div className="space-y-0.5">
-      {officers.slice(0, 3).map((o, i) => (
-        <div key={i} className="text-xs text-slate-300">
-          <span className="font-medium">{o.name}</span>
-          <span className="text-slate-500 ml-1">({o.officer_role})</span>
-        </div>
-      ))}
+    <div className="space-y-1">
+      {officers.slice(0, 3).map((o, i) => {
+        const liUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(o.name + ' ' + companyName)}`;
+        return (
+          <div key={i} className="text-xs text-slate-300">
+            <span className="font-medium">{o.name}</span>
+            <span className="text-slate-500 ml-1">({o.officer_role})</span>
+            <a href={liUrl} target="_blank" rel="noreferrer"
+              className="ml-1.5 text-[10px] text-blue-500 hover:text-blue-400 transition-colors" title="Search on LinkedIn">
+              in
+            </a>
+          </div>
+        );
+      })}
       {officers.length === 0 && <span className="text-xs text-slate-600">No active directors</span>}
     </div>
   );
@@ -186,7 +193,7 @@ function LeadRow({ lead, onCheck }: { lead: Lead; onCheck: () => void }) {
           )}
         </div>
       </td>
-      <td className="px-3 py-3"><OfficersCell companyNumber={company.company_number} /></td>
+      <td className="px-3 py-3"><OfficersCell companyNumber={company.company_number} companyName={company.company_name} /></td>
       <td className="px-3 py-3"><EmailCell websiteUrl={websiteUrl} companyName={company.company_name} /></td>
       <td className="px-3 py-3">
         <div className="flex flex-col gap-1 items-start">

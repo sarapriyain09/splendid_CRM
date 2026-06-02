@@ -1,0 +1,7 @@
+tunnel: ddbb5dca-9149-4ed5-94ac-ecf57b273371
+credentials-file: /home/sarapriyain/.cloudflared/ddbb5dca-9149-4ed5-94ac-ecf57b273371.json
+
+ingress:
+  - hostname: crm.splendidtechnology.co.uk
+    service: http://localhost:3000
+  - service: http_status:404

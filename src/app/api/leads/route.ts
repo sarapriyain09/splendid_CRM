@@ -18,14 +18,14 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status');
   const search = searchParams.get('search');
 
-  const createdBy = searchParams.get('created_by');
+  const assignedTo = searchParams.get('assigned_to');
 
   let sql = 'SELECT l.*, u.name as assigned_name, cu.name as created_by_name FROM leads l LEFT JOIN users u ON l.assigned_to = u.id LEFT JOIN users cu ON l.created_by = cu.id WHERE 1=1';
   const params: (string | number)[] = [];
 
-  if (stage)     { sql += ' AND l.stage = ?';      params.push(stage);     }
-  if (status)    { sql += ' AND l.status = ?';     params.push(status);    }
-  if (createdBy) { sql += ' AND l.created_by = ?'; params.push(createdBy); }
+  if (stage)      { sql += ' AND l.stage = ?';       params.push(stage);      }
+  if (status)     { sql += ' AND l.status = ?';      params.push(status);     }
+  if (assignedTo) { sql += ' AND l.assigned_to = ?'; params.push(assignedTo); }
   if (search) { sql += ' AND (l.company_name LIKE ? OR l.location LIKE ? OR l.email LIKE ?)'; const q = `%${search}%`; params.push(q, q, q); }
 
   sql += ' ORDER BY l.lead_score DESC, l.created_at DESC';
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     postcode:       body.postcode       ?? null,
     incorporated:   body.incorporated   ?? null,
     notes:          body.notes          ?? null,
-    assigned_to:    body.assigned_to    ?? null,
+    assigned_to:    body.assigned_to    ?? (session.user as any)?.id ?? null,
     created_by:     (session.user as any)?.id ?? null,
   });
 

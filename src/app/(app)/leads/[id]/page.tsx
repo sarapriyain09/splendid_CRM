@@ -7,6 +7,51 @@ import { PIPELINE_STAGES, LEAD_SOURCES } from '@/lib/types';
 
 interface LeadDetail { lead: Lead; contacts: Contact[]; notes: Note[]; tasks: Task[]; quotes: Quote[]; }
 
+function DirectorsCard({ companyNumber, companyName }: { companyNumber: string; companyName: string }) {
+  const [officers, setOfficers] = useState<{ name: string; officer_role: string }[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function load() {
+    if (officers !== null) return;
+    setLoading(true);
+    const res = await fetch(`/api/ch/officers?company_number=${companyNumber}`);
+    if (res.ok) { const d = await res.json(); setOfficers(d.items ?? []); }
+    setLoading(false);
+  }
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-300">Directors</h3>
+        {!officers && (
+          <button onClick={load} disabled={loading}
+            className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+            {loading ? 'Loading…' : 'Load from Companies House'}
+          </button>
+        )}
+      </div>
+      {officers && officers.length === 0 && (
+        <p className="text-xs text-slate-600">No active directors found</p>
+      )}
+      {officers && officers.map((o, i) => {
+        const liUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(o.name + ' ' + companyName)}`;
+        return (
+          <div key={i} className="flex items-center justify-between gap-2">
+            <div>
+              <span className="text-sm font-medium text-slate-200">{o.name}</span>
+              <span className="ml-2 text-xs text-slate-500">{o.officer_role}</span>
+            </div>
+            <a href={liUrl} target="_blank" rel="noreferrer"
+              className="flex-shrink-0 text-xs px-2 py-1 bg-blue-900/40 hover:bg-blue-800/60 text-blue-400 hover:text-blue-300 rounded transition-colors font-medium">
+              Search LinkedIn →
+            </a>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const STAGE_COLORS: Record<string, string> = {
   lead:'bg-slate-800 text-slate-300', contacted:'bg-blue-900 text-blue-300',
   meeting_scheduled:'bg-violet-900 text-violet-300', requirements:'bg-amber-900 text-amber-300',
@@ -159,6 +204,7 @@ export default function LeadDetailPage() {
 
       {/* Tab content */}
       {tab === 'overview' && (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
             <h3 className="text-sm font-semibold text-slate-300">Company Info</h3>
@@ -198,6 +244,8 @@ export default function LeadDetailPage() {
             )}
           </div>
         </div>
+        {lead.company_number && <DirectorsCard companyNumber={lead.company_number} companyName={lead.company_name} />}
+        </>
       )}
 
       {tab === 'contacts' && (

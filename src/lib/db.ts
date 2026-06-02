@@ -127,4 +127,11 @@ function initSchema(db: Database.Database) {
   if (!colNames.includes('created_by')) {
     db.exec(`ALTER TABLE leads ADD COLUMN created_by INTEGER REFERENCES users(id)`);
   }
+
+  // Users table migrations
+  const userCols = db.prepare(`PRAGMA table_info(users)`).all() as { name: string }[];
+  const userColNames = userCols.map(c => c.name);
+  if (!userColNames.includes('phone')) {
+    db.exec(`ALTER TABLE users ADD COLUMN phone TEXT`);
+  }
 }

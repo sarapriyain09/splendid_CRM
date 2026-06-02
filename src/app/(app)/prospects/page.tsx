@@ -11,13 +11,12 @@ function scoreColor(score: number) {
 }
 
 function buildSMS(prospect: Lead): string {
-  const name    = prospect.company_name;
   const reasons = (prospect.notes ?? '').split(' · ').filter(Boolean);
   const hasNoWebsite = reasons.some(r => r.toLowerCase().includes('no website'));
   if (hasNoWebsite) {
-    return `Hi ${name}, I'm from Splendid Technology. We build professional websites from £499 to help you get found online. Free 15min chat? splendidtechnology.co.uk`;
+    return `Hi, I'm from Splendid Technology. We build professional websites from £50. Can we book a quick chat? splendidtechnology.co.uk`;
   }
-  return `Hi ${name}, I spotted a few issues with your website that could be costing you customers. Free 15min chat to fix them? Splendid Technology - splendidtechnology.co.uk`;
+  return `Hi, I spotted issues with your website costing you customers. Can we book an appointment to fix them? Splendid Technology - splendidtechnology.co.uk`;
 }
 
 // ─── SMS compose modal ───────────────────────────────────────────────────────
@@ -82,7 +81,7 @@ function SmsPanel({ prospect, onClose, onSent }: {
             <div className="flex justify-between">
               <label className="text-xs font-medium text-slate-400">Message</label>
               <span className={`text-[10px] ${charsLeft < 0 ? 'text-red-400' : charsLeft < 20 ? 'text-amber-400' : 'text-slate-600'}`}>
-                {charsLeft} chars left
+                {message.length} / 160 chars
               </span>
             </div>
             <textarea rows={5} value={message} onChange={e => setMessage(e.target.value)}
@@ -111,6 +110,70 @@ function SmsPanel({ prospect, onClose, onSent }: {
 
 function buildEmail(prospect: Lead): { subject: string; message: string } {
   const name    = prospect.company_name;
+  const isAccountant = /account/i.test(prospect.company_name);
+  const isNewCompany = prospect.source === 'companies_house';
+
+  if (isNewCompany && !isAccountant) {
+    const subject = `Congratulations on Your New Business – Splendid Technology`;
+    const message =
+`Dear ${name},
+
+Congratulations on registering your new company! Starting a business is a big step, and we'd love to help you get off to the best possible start.
+
+At Splendid Technology, we specialise in helping new businesses build a strong digital foundation:
+
+  • Professional websites from £499 — get online and get found
+  • Business email (yourname@yourdomain.co.uk) — look professional from day one
+  • CRM & customer management tools — stay organised as you grow
+  • Hosting, domain registration & ongoing support
+
+We understand that when you're just starting out, budget and time are tight. That's why we offer flexible packages designed specifically for new businesses — no jargon, no lock-in contracts.
+
+Would you be open to a free 15-minute chat to see how we can help?
+
+Kind regards,
+
+Raja Saravanan
+Founder & Business Development Lead
+Splendid Technology
+
+📞 07721 952967
+📧 raja@splendidtechnology.co.uk
+🌐 splendidtechnology.co.uk`;
+    return { subject, message };
+  }
+
+  if (isAccountant) {
+    const subject = `Business Collaboration Opportunity – Splendid Technology`;
+    const message =
+`Dear ${name},
+
+I hope you are doing well.
+
+My name is Raja Saravanan, and I am the Founder & Business Development Lead at Splendid Technology.
+
+We work with small and medium-sized businesses, helping them improve their digital presence through professional websites, business email solutions, hosting, CRM systems, and business process automation.
+
+As accountants play a key role in supporting growing businesses, I believe there may be opportunities for us to collaborate and add value to your clients. Many SMEs require assistance with their online presence, customer management, and digital systems, and we aim to provide practical, cost-effective solutions tailored to their needs.
+
+I would welcome the opportunity to learn more about your firm, understand the challenges your clients face, and explore whether there are areas where we could support each other professionally.
+
+Would you be available for a brief call or meeting in the coming weeks?
+
+I look forward to hearing from you.
+
+Kind regards,
+
+Raja Saravanan
+Founder & Business Development Lead
+Splendid Technology
+
+📞 07721 952967
+📧 raja@splendidtechnology.co.uk
+🌐 splendidtechnology.co.uk`;
+    return { subject, message };
+  }
+
   const reasons = (prospect.notes ?? '').split(' · ').filter(Boolean);
   const issueLines = reasons
     .filter(r => r !== 'Website looks good')
@@ -138,6 +201,25 @@ function EmailPanel({ prospect, onClose, onSent }: {
   const [error,   setError]   = useState('');
   const [sent,    setSent]    = useState(false);
   const [notConfigured, setNotConfigured] = useState(false);
+  const [scraping, setScraping] = useState(false);
+  const [scraped,  setScraped]  = useState<string[]>([]);
+
+  // Auto-scrape email from website when panel opens and no email known
+  useEffect(() => {
+    if (prospect.email || !prospect.website) return;
+    setScraping(true);
+    fetch(`/api/ch/scrape-email?url=${encodeURIComponent(prospect.website)}`)
+      .then(r => r.json())
+      .then(data => {
+        const emails: string[] = data.emails ?? [];
+        if (emails.length > 0) {
+          setTo(emails[0]);
+          setScraped(emails);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setScraping(false));
+  }, [prospect.website, prospect.email]);
 
   async function send() {
     if (!to.trim() || !subject.trim() || !message.trim()) return;
@@ -183,10 +265,27 @@ function EmailPanel({ prospect, onClose, onSent }: {
             </div>
           )}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-400">To</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-slate-400">To</label>
+              {scraping && <span className="text-[10px] text-slate-500 animate-pulse">🔍 Scanning website for email…</span>}
+            </div>
             <input type="email" value={to} onChange={e => setTo(e.target.value)}
               placeholder="contact@theirbusiness.co.uk"
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+            {scraped.length > 1 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                <span className="text-[10px] text-slate-500">Found:</span>
+                {scraped.map(e => (
+                  <button key={e} onClick={() => setTo(e)}
+                    className={`text-[10px] px-2 py-0.5 rounded transition-colors ${to === e ? 'bg-blue-700 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+            )}
+            {scraped.length === 0 && !scraping && !prospect.email && prospect.website && (
+              <p className="text-[10px] text-slate-600">No email found on website — enter manually</p>
+            )}
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-400">Subject</label>
@@ -229,17 +328,52 @@ export default function ProspectsPage() {
   const [emailTarget,     setEmailTarget]     = useState<Lead | null>(null);
   const [smsTarget,       setSmsTarget]       = useState<Lead | null>(null);
   const [filterContacted, setFilterContacted] = useState<'all' | 'contacted' | 'not_contacted'>('all');
+  const [createdBy,       setCreatedBy]       = useState('');
+  const [users,           setUsers]           = useState<{ id: number; name: string }[]>([]);
+  const [selected,        setSelected]        = useState<Set<number>>(new Set());
+  const [deletingIds,     setDeletingIds]     = useState<Set<number>>(new Set());
+  const [deletingBulk,    setDeletingBulk]    = useState(false);
+  const [callingId,       setCallingId]       = useState<number | null>(null);
+  const [callError,       setCallError]       = useState<string>('');
 
   const fetchProspects = useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams({ stage: 'prospect' });
-    if (search) p.set('search', search);
+    if (search)    p.set('search', search);
+    if (createdBy) p.set('assigned_to', createdBy);
     const data = await fetch(`/api/leads?${p}`).then(r => r.json());
     setProspects(Array.isArray(data) ? data : []);
     setLoading(false);
-  }, [search]);
+  }, [search, createdBy]);
 
   useEffect(() => { fetchProspects(); }, [fetchProspects]);
+  useEffect(() => {
+    fetch('/api/users').then(r => r.json()).then(data => setUsers(Array.isArray(data) ? data : []));
+  }, []);
+
+  async function initiateCall(prospect: Lead) {
+    if (!prospect.phone) return;
+    setCallingId(prospect.id);
+    setCallError('');
+    try {
+      const res = await fetch('/api/prospects/call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: prospect.id, to: prospect.phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCallError(data.error ?? 'Failed to initiate call');
+      } else {
+        // Brief success flash then refresh notes
+        fetchProspects();
+      }
+    } catch {
+      setCallError('Network error');
+    } finally {
+      setCallingId(null);
+    }
+  }
 
   async function markContacted(id: number) {
     setMarkingId(id);
@@ -250,6 +384,36 @@ export default function ProspectsPage() {
     });
     setMarkingId(null);
     fetchProspects();
+  }
+
+  async function deleteOne(id: number) {
+    if (!confirm('Delete this prospect?')) return;
+    setDeletingIds(prev => new Set(prev).add(id));
+    await fetch(`/api/leads/${id}`, { method: 'DELETE' });
+    setDeletingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    setSelected(prev => { const s = new Set(prev); s.delete(id); return s; });
+    fetchProspects();
+  }
+
+  async function deleteSelected() {
+    if (!confirm(`Delete ${selected.size} selected prospect(s)? This cannot be undone.`)) return;
+    setDeletingBulk(true);
+    await Promise.all([...selected].map(id => fetch(`/api/leads/${id}`, { method: 'DELETE' })));
+    setSelected(new Set());
+    setDeletingBulk(false);
+    fetchProspects();
+  }
+
+  function toggleSelect(id: number) {
+    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(p => p.id)));
+    }
   }
 
   async function convertToLead(id: number) {
@@ -281,6 +445,14 @@ export default function ProspectsPage() {
         <SmsPanel prospect={smsTarget} onClose={() => setSmsTarget(null)} onSent={fetchProspects} />
       )}
 
+      {/* Call error toast */}
+      {callError && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 bg-red-950 border border-red-800 rounded-xl text-sm text-red-200">
+          <span>📞 Call failed: {callError}</span>
+          <button onClick={() => setCallError('')} className="text-red-400 hover:text-red-200">✕</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
@@ -302,6 +474,20 @@ export default function ProspectsPage() {
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-red-950 border border-red-800 rounded-xl">
+          <span className="text-sm text-red-200 font-medium">{selected.size} selected</span>
+          <button onClick={deleteSelected} disabled={deletingBulk}
+            className="px-4 py-1.5 bg-red-700 hover:bg-red-600 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-semibold rounded-lg transition-colors">
+            {deletingBulk ? 'Deleting…' : `🗑 Delete ${selected.size}`}
+          </button>
+          <button onClick={() => setSelected(new Set())} className="text-xs text-red-400 hover:text-red-200 transition-colors">
+            Clear selection
+          </button>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex gap-3 flex-wrap items-center">
         <input type="text" placeholder="Search company, location, email…" value={search}
@@ -317,6 +503,13 @@ export default function ProspectsPage() {
             </button>
           ))}
         </div>
+        {users.length > 0 && (
+          <select value={createdBy} onChange={e => setCreatedBy(e.target.value)}
+            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+            <option value="">All users</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+        )}
       </div>
 
       {/* Table */}
@@ -341,6 +534,12 @@ export default function ProspectsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-800 text-xs text-slate-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 w-10">
+                    <input type="checkbox"
+                      checked={filtered.length > 0 && selected.size === filtered.length}
+                      onChange={toggleSelectAll}
+                      className="accent-blue-500 w-4 h-4 cursor-pointer" />
+                  </th>
                   <th className="px-3 py-3 text-center w-14">Score</th>
                   <th className="px-3 py-3 text-left">Company</th>
                   <th className="px-3 py-3 text-left">Contact</th>
@@ -351,7 +550,13 @@ export default function ProspectsPage() {
               </thead>
               <tbody>
                 {filtered.map(p => (
-                  <tr key={p.id} className="border-b border-slate-800 hover:bg-slate-800/40 transition-colors">
+                  <tr key={p.id} className={`border-b border-slate-800 hover:bg-slate-800/40 transition-colors ${selected.has(p.id) ? 'bg-slate-800/60' : ''}`}>
+                    <td className="px-3 py-3">
+                      <input type="checkbox"
+                        checked={selected.has(p.id)}
+                        onChange={() => toggleSelect(p.id)}
+                        className="accent-blue-500 w-4 h-4 cursor-pointer" />
+                    </td>
                     <td className="px-3 py-3 text-center">
                       <span className={`inline-flex items-center justify-center w-9 h-9 rounded-lg text-sm font-bold ${scoreColor(p.lead_score ?? 0)}`}>
                         {p.lead_score ?? 0}
@@ -418,6 +623,12 @@ export default function ProspectsPage() {
                             {p.sms_sent_at ? '📱 SMS Again' : '📱 Send SMS'}
                           </button>
                         )}
+                        {p.phone && (
+                          <button onClick={() => initiateCall(p)} disabled={callingId === p.id}
+                            className="text-xs px-3 py-1.5 bg-green-800 hover:bg-green-700 disabled:bg-slate-700 disabled:text-slate-500 text-green-100 rounded-lg font-medium transition-colors whitespace-nowrap">
+                            {callingId === p.id ? '📞 Calling…' : '📞 Call'}
+                          </button>
+                        )}
                         {!p.contacted_at && (
                           <button onClick={() => markContacted(p.id)} disabled={markingId === p.id}
                             className="text-xs px-3 py-1.5 bg-emerald-900 hover:bg-emerald-800 disabled:bg-slate-700 disabled:text-slate-500 text-emerald-200 rounded-lg font-medium transition-colors whitespace-nowrap">
@@ -431,6 +642,10 @@ export default function ProspectsPage() {
                         <Link href={`/leads/${p.id}`} className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors">
                           View details →
                         </Link>
+                        <button onClick={() => deleteOne(p.id)} disabled={deletingIds.has(p.id)}
+                          className="text-xs px-3 py-1.5 bg-red-900 hover:bg-red-800 disabled:bg-slate-700 disabled:text-slate-500 text-red-200 rounded-lg font-medium transition-colors whitespace-nowrap">
+                          {deletingIds.has(p.id) ? 'Deleting…' : '🗑 Delete'}
+                        </button>
                       </div>
                     </td>
                   </tr>

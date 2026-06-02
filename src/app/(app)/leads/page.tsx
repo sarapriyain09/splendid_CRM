@@ -36,7 +36,7 @@ export default function LeadsPage() {
     const p = new URLSearchParams();
     if (search)    p.set('search', search);
     if (stage)     p.set('stage', stage);
-    if (createdBy) p.set('created_by', createdBy);
+    if (createdBy) p.set('assigned_to', createdBy);
     const data = await fetch(`/api/leads?${p}`).then(r => r.json());
     setLeads(Array.isArray(data) ? data : []);
     setLoading(false);

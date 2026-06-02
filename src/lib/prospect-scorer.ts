@@ -6,6 +6,8 @@ export interface WebsiteAnalysis {
   hasContactForm: boolean;
   loadTimeMs: number | null;
   isSlowLoading: boolean;
+  hasCrmKeywords: boolean;    // CRM platform keywords found on site
+  hasProductionKeywords: boolean; // Manufacturing/production keywords found
   opportunityScore: number;   // 0–100. Higher = bigger opportunity for us.
   opportunityLabel: 'hot' | 'warm' | 'low';
   reasons: string[];          // Human-readable reasons e.g. "No SSL certificate"
@@ -37,6 +39,8 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
       hasContactForm: false,
       loadTimeMs: null,
       isSlowLoading: false,
+      hasCrmKeywords: false,
+      hasProductionKeywords: false,
       opportunityScore: 100,
       opportunityLabel: 'hot',
       reasons: ['No website'],
@@ -69,6 +73,8 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
         hasContactForm: false,
         loadTimeMs,
         isSlowLoading: false,
+        hasCrmKeywords: false,
+        hasProductionKeywords: false,
         opportunityScore: 90,
         opportunityLabel: 'hot',
         reasons: ['Website is broken or unreachable'],
@@ -83,6 +89,11 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
       html.includes('<form') ||
       (html.includes('contact') && (html.includes('href') || html.includes('<a')));
     const isSlowLoading = loadTimeMs > SLOW_THRESHOLD_MS;
+
+    const CRM_KEYWORDS = ['salesforce', 'hubspot', 'zoho', 'pipedrive', 'crm', 'dynamics 365', 'monday.com', 'freshsales'];
+    const PROD_KEYWORDS = ['manufacturing', 'machining', 'fabrication', 'production line', 'precision engineering', 'cnc', 'tooling', 'industrial', 'automation', 'warehousing', 'logistics'];
+    const hasCrmKeywords        = CRM_KEYWORDS.some(k => html.includes(k));
+    const hasProductionKeywords = PROD_KEYWORDS.some(k => html.includes(k));
 
     let score = 0;
     const reasons: string[] = [];
@@ -102,6 +113,8 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
       hasContactForm,
       loadTimeMs,
       isSlowLoading,
+      hasCrmKeywords,
+      hasProductionKeywords,
       opportunityScore: score,
       opportunityLabel: opportunityLabel(score),
       reasons,
@@ -116,6 +129,8 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
       hasContactForm: false,
       loadTimeMs: Date.now() - start,
       isSlowLoading: false,
+      hasCrmKeywords: false,
+      hasProductionKeywords: false,
       opportunityScore: 90,
       opportunityLabel: 'hot',
       reasons: ['Website unreachable or timed out'],
