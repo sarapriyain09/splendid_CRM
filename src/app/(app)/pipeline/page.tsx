@@ -57,15 +57,22 @@ function Column({ stage, leads }: { stage: { key: string; label: string }; leads
 
 export default function PipelinePage() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [createdBy, setCreatedBy] = useState('');
+  const [users, setUsers] = useState<{ id: number; name: string }[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/leads');
+    const p = new URLSearchParams();
+    if (createdBy) p.set('created_by', createdBy);
+    const res = await fetch(`/api/leads?${p}`);
     if (res.ok) setLeads(await res.json());
-  }, []);
+  }, [createdBy]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    fetch('/api/users').then(r => r.json()).then(data => setUsers(Array.isArray(data) ? data : []));
+  }, []);
 
   const byStage = (key: string) => leads.filter(l => l.stage === key);
   const activeLead = activeId ? leads.find(l => l.id === activeId) : null;
@@ -109,9 +116,21 @@ export default function PipelinePage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-100">Pipeline</h1>
-        <span className="text-sm text-slate-500">{leads.length} leads · drag to change stage</span>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl font-bold text-slate-100">Pipeline</h1>
+          <p className="text-sm text-slate-500">{leads.length} leads · drag to change stage</p>
+        </div>
+        {users.length > 0 && (
+          <select
+            value={createdBy}
+            onChange={e => setCreatedBy(e.target.value)}
+            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+          >
+            <option value="">All users</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+        )}
       </div>
       <div className="overflow-x-auto pb-4">
         <DndContext sensors={sensors} collisionDetection={closestCorners}

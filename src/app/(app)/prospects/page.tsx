@@ -225,6 +225,7 @@ export default function ProspectsPage() {
   const [search,          setSearch]          = useState('');
   const [loading,         setLoading]         = useState(true);
   const [convertingId,    setConvertingId]    = useState<number | null>(null);
+  const [markingId,       setMarkingId]       = useState<number | null>(null);
   const [emailTarget,     setEmailTarget]     = useState<Lead | null>(null);
   const [smsTarget,       setSmsTarget]       = useState<Lead | null>(null);
   const [filterContacted, setFilterContacted] = useState<'all' | 'contacted' | 'not_contacted'>('all');
@@ -239,6 +240,17 @@ export default function ProspectsPage() {
   }, [search]);
 
   useEffect(() => { fetchProspects(); }, [fetchProspects]);
+
+  async function markContacted(id: number) {
+    setMarkingId(id);
+    await fetch(`/api/leads/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contacted_at: new Date().toISOString() }),
+    });
+    setMarkingId(null);
+    fetchProspects();
+  }
 
   async function convertToLead(id: number) {
     setConvertingId(id);
@@ -404,6 +416,12 @@ export default function ProspectsPage() {
                                 : 'bg-violet-700 hover:bg-violet-600 text-white'
                             }`}>
                             {p.sms_sent_at ? '📱 SMS Again' : '📱 Send SMS'}
+                          </button>
+                        )}
+                        {!p.contacted_at && (
+                          <button onClick={() => markContacted(p.id)} disabled={markingId === p.id}
+                            className="text-xs px-3 py-1.5 bg-emerald-900 hover:bg-emerald-800 disabled:bg-slate-700 disabled:text-slate-500 text-emerald-200 rounded-lg font-medium transition-colors whitespace-nowrap">
+                            {markingId === p.id ? 'Marking…' : '✓ Mark Contacted'}
                           </button>
                         )}
                         <button onClick={() => convertToLead(p.id)} disabled={convertingId === p.id}

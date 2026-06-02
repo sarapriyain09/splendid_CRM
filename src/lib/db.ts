@@ -124,4 +124,7 @@ function initSchema(db: Database.Database) {
   if (!colNames.includes('sms_message')) {
     db.exec(`ALTER TABLE leads ADD COLUMN sms_message TEXT`);
   }
+  if (!colNames.includes('created_by')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN created_by INTEGER REFERENCES users(id)`);
+  }
 }

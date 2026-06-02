@@ -18,11 +18,14 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status');
   const search = searchParams.get('search');
 
-  let sql = 'SELECT l.*, u.name as assigned_name FROM leads l LEFT JOIN users u ON l.assigned_to = u.id WHERE 1=1';
+  const createdBy = searchParams.get('created_by');
+
+  let sql = 'SELECT l.*, u.name as assigned_name, cu.name as created_by_name FROM leads l LEFT JOIN users u ON l.assigned_to = u.id LEFT JOIN users cu ON l.created_by = cu.id WHERE 1=1';
   const params: (string | number)[] = [];
 
-  if (stage)  { sql += ' AND l.stage = ?';  params.push(stage);  }
-  if (status) { sql += ' AND l.status = ?'; params.push(status); }
+  if (stage)     { sql += ' AND l.stage = ?';      params.push(stage);     }
+  if (status)    { sql += ' AND l.status = ?';     params.push(status);    }
+  if (createdBy) { sql += ' AND l.created_by = ?'; params.push(createdBy); }
   if (search) { sql += ' AND (l.company_name LIKE ? OR l.location LIKE ? OR l.email LIKE ?)'; const q = `%${search}%`; params.push(q, q, q); }
 
   sql += ' ORDER BY l.lead_score DESC, l.created_at DESC';
@@ -46,10 +49,10 @@ export async function POST(req: NextRequest) {
   const stmt = db.prepare(`
     INSERT INTO leads
       (company_name, company_number, sic_code, sic_label, website, phone, email,
-       source, lead_score, status, stage, location, postcode, incorporated, notes, assigned_to)
+       source, lead_score, status, stage, location, postcode, incorporated, notes, assigned_to, created_by)
     VALUES
       (@company_name, @company_number, @sic_code, @sic_label, @website, @phone, @email,
-       @source, @lead_score, @status, @stage, @location, @postcode, @incorporated, @notes, @assigned_to)
+       @source, @lead_score, @status, @stage, @location, @postcode, @incorporated, @notes, @assigned_to, @created_by)
   `);
 
   const result = stmt.run({
@@ -69,6 +72,7 @@ export async function POST(req: NextRequest) {
     incorporated:   body.incorporated   ?? null,
     notes:          body.notes          ?? null,
     assigned_to:    body.assigned_to    ?? null,
+    created_by:     (session.user as any)?.id ?? null,
   });
 
   const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(result.lastInsertRowid);

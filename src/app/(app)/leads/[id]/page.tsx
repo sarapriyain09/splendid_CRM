@@ -71,6 +71,16 @@ export default function LeadDetailPage() {
     load();
   }
 
+  async function disqualifyLead() {
+    if (!confirm('Mark this lead as disqualified (Lost)? You can reopen it later by changing the stage.')) return;
+    await fetch(`/api/leads/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage: 'lost', status: 'rejected' }),
+    });
+    load();
+  }
+
   async function deleteLead() {
     if (!confirm('Delete this lead? This cannot be undone.')) return;
     await fetch(`/api/leads/${id}`, { method:'DELETE' });
@@ -104,6 +114,11 @@ export default function LeadDetailPage() {
             className="px-3 py-2 bg-amber-700 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors">
             + Quote
           </Link>
+          {lead.stage !== 'lost' && lead.status !== 'rejected' && (
+            <button onClick={disqualifyLead} className="px-3 py-2 bg-slate-800 hover:bg-orange-900 text-slate-400 hover:text-orange-300 text-sm rounded-lg transition-colors">
+              ✕ Disqualify
+            </button>
+          )}
           <button onClick={deleteLead} className="px-3 py-2 bg-slate-800 hover:bg-red-900 text-slate-400 hover:text-red-300 text-sm rounded-lg transition-colors">
             Delete
           </button>
