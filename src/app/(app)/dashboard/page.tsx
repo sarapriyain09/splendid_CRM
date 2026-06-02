@@ -11,6 +11,18 @@ interface Stats {
   stageCount: { stage: string; c: number }[];
 }
 
+// Funnel stages in order (excluding 'lost' from the main funnel)
+const FUNNEL_STAGES = [
+  { key: 'prospect',          label: 'Prospects',         color: 'bg-violet-600' },
+  { key: 'lead',              label: 'Leads',             color: 'bg-blue-600' },
+  { key: 'contacted',         label: 'Contacted',         color: 'bg-cyan-600' },
+  { key: 'meeting_scheduled', label: 'Meeting Booked',    color: 'bg-teal-600' },
+  { key: 'requirements',      label: 'Requirements',      color: 'bg-emerald-600' },
+  { key: 'proposal_sent',     label: 'Proposal Sent',     color: 'bg-yellow-600' },
+  { key: 'negotiation',       label: 'Negotiation',       color: 'bg-orange-600' },
+  { key: 'won',               label: 'Won',               color: 'bg-green-500' },
+];
+
 const STAT_CARDS = (s: Stats) => [
   { label: 'Total Leads',    value: s.totalLeads,                        color: 'text-blue-400',    icon: '◎' },
   { label: 'Hot Leads',      value: s.hotLeads,                          color: 'text-red-400',     icon: '🔴' },
@@ -57,6 +69,47 @@ export default function DashboardPage() {
             <div className="text-xs text-slate-500 mt-1">{c.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Sales Funnel */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-semibold text-slate-300">Sales Funnel</h2>
+          <span className="text-xs text-slate-500">{stats.stageCount.reduce((a, s) => a + s.c, 0)} total</span>
+        </div>
+        <div className="space-y-1.5">
+          {(() => {
+            const sm = Object.fromEntries(stats.stageCount.map(s => [s.stage, s.c]));
+            const top = Math.max(...FUNNEL_STAGES.map(s => sm[s.key] ?? 0), 1);
+            return FUNNEL_STAGES.map((stage, i) => {
+              const count = sm[stage.key] ?? 0;
+              const pct   = Math.round((count / top) * 100);
+              const prev  = i > 0 ? (sm[FUNNEL_STAGES[i - 1].key] ?? 0) : null;
+              const conv  = prev !== null && prev > 0 ? Math.round((count / prev) * 100) : null;
+              return (
+                <div key={stage.key} className="flex items-center gap-3">
+                  <div className="w-28 text-xs text-slate-400 text-right truncate">{stage.label}</div>
+                  <div className="flex-1 flex justify-center">
+                    <div
+                      className={`${stage.color} rounded h-7 flex items-center justify-center transition-all duration-500`}
+                      style={{ width: `${Math.max(pct, 4)}%` }}
+                    >
+                      {count > 0 && <span className="text-xs font-semibold text-white px-2">{count}</span>}
+                    </div>
+                  </div>
+                  <div className="w-14 text-xs text-slate-500 text-left">
+                    {conv !== null ? <span className={conv >= 50 ? 'text-emerald-400' : conv >= 25 ? 'text-amber-400' : 'text-red-400'}>{conv}%</span> : <span className="text-slate-600">—</span>}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+        <div className="flex items-center gap-6 mt-4 pt-4 border-t border-slate-800 text-xs text-slate-500">
+          <span>Bar width = relative volume</span>
+          <span>% = conversion from previous stage</span>
+          <Link href="/pipeline" className="ml-auto text-blue-400 hover:text-blue-300">View Pipeline →</Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

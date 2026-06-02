@@ -6,6 +6,7 @@ export interface WebsiteAnalysis {
   hasContactForm: boolean;
   loadTimeMs: number | null;
   isSlowLoading: boolean;
+  hasSeoIssues: boolean;      // Missing meta description or H1
   hasCrmKeywords: boolean;    // CRM platform keywords found on site
   hasProductionKeywords: boolean; // Manufacturing/production keywords found
   opportunityScore: number;   // 0–100. Higher = bigger opportunity for us.
@@ -43,6 +44,7 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
       hasProductionKeywords: false,
       opportunityScore: 100,
       opportunityLabel: 'hot',
+      hasSeoIssues: false,
       reasons: ['No website'],
     };
   }
@@ -77,6 +79,7 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
         hasProductionKeywords: false,
         opportunityScore: 90,
         opportunityLabel: 'hot',
+        hasSeoIssues: false,
         reasons: ['Website is broken or unreachable'],
       };
     }
@@ -95,6 +98,10 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
     const hasCrmKeywords        = CRM_KEYWORDS.some(k => html.includes(k));
     const hasProductionKeywords = PROD_KEYWORDS.some(k => html.includes(k));
 
+    const hasMetaDesc = html.includes('name="meta-description"') || html.includes('name="description"') || html.includes("name='description'");
+    const hasH1       = html.includes('<h1');
+    const hasSeoIssues = !hasMetaDesc || !hasH1;
+
     let score = 0;
     const reasons: string[] = [];
 
@@ -102,6 +109,7 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
     if (!isMobileFriendly){ score += SCORE_NOT_MOBILE; reasons.push('Not mobile friendly'); }
     if (!hasContactForm)  { score += SCORE_NO_CONTACT; reasons.push('No contact form'); }
     if (isSlowLoading)    { score += SCORE_SLOW;       reasons.push(`Slow loading (${(loadTimeMs / 1000).toFixed(1)}s)`); }
+    if (hasSeoIssues)     { score += 15;               reasons.push('Poor SEO setup'); }
 
     if (reasons.length === 0) reasons.push('Website looks good');
 
@@ -113,6 +121,7 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
       hasContactForm,
       loadTimeMs,
       isSlowLoading,
+      hasSeoIssues,
       hasCrmKeywords,
       hasProductionKeywords,
       opportunityScore: score,
@@ -129,6 +138,7 @@ export async function analyseWebsite(url?: string | null): Promise<WebsiteAnalys
       hasContactForm: false,
       loadTimeMs: Date.now() - start,
       isSlowLoading: false,
+      hasSeoIssues: false,
       hasCrmKeywords: false,
       hasProductionKeywords: false,
       opportunityScore: 90,

@@ -3,6 +3,7 @@ $PI = "sarapriyain@192.168.0.64"
 $REMOTE = "/home/sarapriyain/Projects/CRM/splendid_CRM"
 
 $files = @(
+  "src/app/(app)/dashboard/page.tsx",
   "src/app/(app)/leads/page.tsx",
   "src/app/(app)/leads/[id]/page.tsx",
   "src/app/(app)/pipeline/page.tsx",

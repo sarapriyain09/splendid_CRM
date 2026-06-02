@@ -135,11 +135,14 @@ Kind regards,
 
 Raja Saravanan
 Founder & Business Development Lead
+
 Splendid Technology
 
-📞 07721 952967
+📞 Mobile: 07721 952967
 📧 raja@splendidtechnology.co.uk
-🌐 splendidtechnology.co.uk`;
+🌐 www.splendidtechnology.co.uk
+
+Websites | Hosting | Business Email | CRM Solutions | Business Process Automation`;
     return { subject, message };
   }
 
@@ -166,24 +169,31 @@ Kind regards,
 
 Raja Saravanan
 Founder & Business Development Lead
+
 Splendid Technology
 
-📞 07721 952967
+📞 Mobile: 07721 952967
 📧 raja@splendidtechnology.co.uk
-🌐 splendidtechnology.co.uk`;
+🌐 www.splendidtechnology.co.uk
+
+Websites | Hosting | Business Email | CRM Solutions | Business Process Automation`;
     return { subject, message };
   }
 
   const reasons = (prospect.notes ?? '').split(' · ').filter(Boolean);
+  // Strip internal scoring labels (sector tags, CRM detection, keyword flags) and score numbers
+  const INTERNAL_LABEL = /sector \(\+\d+\)|industrial keywords|no crm detected|website looks good/i;
   const issueLines = reasons
-    .filter(r => r !== 'Website looks good')
+    .filter(r => !INTERNAL_LABEL.test(r))
+    .map(r => r.replace(/\s*\(\+\d+\)/, '').trim())
+    .filter(Boolean)
     .map(r => `  • ${r}`)
     .join('\n');
   const subject = `Your website – quick note from Splendid Technology`;
   const hasNoWebsite = reasons.some(r => r.toLowerCase().includes('no website'));
   const message = hasNoWebsite
-    ? `Hi ${name},\n\nI noticed your business doesn't currently have a website. In today's market, most customers search online before making a call — so not having a website means missing out on new enquiries every day.\n\nAt Splendid Technology, we build professional, mobile-friendly websites starting from just £499. We'd love to help get you online.\n\nWould you be open to a free 15-minute chat this week?\n\nBest regards,\nSplendid Technology\nhttps://splendidtechnology.co.uk`
-    : `Hi ${name},\n\nI came across your website and noticed a few things that could be holding your business back online:\n\n${issueLines || '  • Several improvements available'}\n\nAt Splendid Technology, we help businesses like yours fix these issues quickly and affordably — with no jargon.\n\nWould you be open to a free 15-minute call this week to see if we can help?\n\nBest regards,\nSplendid Technology\nhttps://splendidtechnology.co.uk`;
+    ? `Hi ${name},\n\nI noticed your business doesn't currently have a website. In today's market, most customers search online before making a call — so not having a website means missing out on new enquiries every day.\n\nAt Splendid Technology, we build professional, mobile-friendly websites starting from just £499. We'd love to help get you online.\n\nWould you be open to a free 15-minute chat this week?\n\nKind regards,\n\nRaja Saravanan\nFounder & Business Development Lead\n\nSplendid Technology\n\n📞 Mobile: 07721 952967\n📧 raja@splendidtechnology.co.uk\n🌐 www.splendidtechnology.co.uk\n\nWebsites | Hosting | Business Email | CRM Solutions | Business Process Automation`
+    : `Hi ${name},\n\nI came across your website and noticed a few things that could be holding your business back online:\n\n${issueLines || '  • Several improvements available'}\n\nAt Splendid Technology, we help businesses like yours fix these issues quickly and affordably — with no jargon.\n\nWould you be open to a free 15-minute call this week to see if we can help?\n\nKind regards,\n\nRaja Saravanan\nFounder & Business Development Lead\n\nSplendid Technology\n\n📞 Mobile: 07721 952967\n📧 raja@splendidtechnology.co.uk\n🌐 www.splendidtechnology.co.uk\n\nWebsites | Hosting | Business Email | CRM Solutions | Business Process Automation`;
   return { subject, message };
 }
 
