@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { PIPELINE_STAGES, LEAD_SOURCES } from '@/lib/types';
+import { PIPELINE_STAGES, LEAD_SOURCES, LEAD_VERTICALS } from '@/lib/types';
 
 export default function NewLeadPage() {
   const router = useRouter();
@@ -10,7 +10,7 @@ export default function NewLeadPage() {
   const [form, setForm] = useState({
     company_name: '', company_number: '', website: '', phone: '', email: '',
     location: '', postcode: '', incorporated: '', sic_code: '', sic_label: '',
-    stage: 'lead', source: 'manual', lead_score: '0', status: 'active',
+    stage: 'lead', source: 'manual', lead_score: '0', status: 'active', vertical: 'engineering',
   });
 
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
@@ -109,6 +109,13 @@ export default function NewLeadPage() {
         </div>
 
         <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-400">Vertical *</label>
+            <select value={form.vertical} onChange={e => set('vertical', e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+              {LEAD_VERTICALS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+            </select>
+          </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-400">Stage</label>
             <select value={form.stage} onChange={e => set('stage', e.target.value)}

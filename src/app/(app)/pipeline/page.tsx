@@ -8,7 +8,15 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Lead, LeadStage } from '@/lib/types';
-import { PIPELINE_STAGES } from '@/lib/types';
+import { PIPELINE_STAGES, LEAD_VERTICALS } from '@/lib/types';
+
+const VERTICAL_COLORS: Record<string, { tab: string; active: string }> = {
+  industry_4_0: { tab: 'text-cyan-400',    active: 'border-b-2 border-cyan-400 text-cyan-400'    },
+  engineering:  { tab: 'text-blue-400',    active: 'border-b-2 border-blue-400 text-blue-400'    },
+  digital:      { tab: 'text-violet-400',  active: 'border-b-2 border-violet-400 text-violet-400' },
+  software:     { tab: 'text-emerald-400', active: 'border-b-2 border-emerald-400 text-emerald-400' },
+  all:          { tab: 'text-slate-400',   active: 'border-b-2 border-white text-white'            },
+};
 
 const STAGE_COLORS: Record<string, string> = {
   lead:'border-slate-600', contacted:'border-blue-600',
@@ -69,6 +77,7 @@ function Column({ stage, leads, onMarkContacted }: { stage: { key: string; label
 
 export default function PipelinePage() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [vertical, setVertical] = useState<string>('all');
   const [createdBy, setCreatedBy] = useState('');
   const [users, setUsers] = useState<{ id: number; name: string }[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -77,14 +86,25 @@ export default function PipelinePage() {
   const load = useCallback(async () => {
     const p = new URLSearchParams();
     if (createdBy) p.set('assigned_to', createdBy);
+    if (vertical && vertical !== 'all') p.set('vertical', vertical);
     const res = await fetch(`/api/leads?${p}`);
     if (res.ok) setLeads(await res.json());
-  }, [createdBy]);
+  }, [createdBy, vertical]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => setUsers(Array.isArray(data) ? data : []));
   }, []);
+
+  // Count leads per vertical for tab badges
+  const allLeadsFetch = useCallback(async () => {
+    const res = await fetch('/api/leads');
+    if (res.ok) return (await res.json()) as Lead[];
+    return [] as Lead[];
+  }, []);
+  const [allLeads, setAllLeads] = useState<Lead[]>([]);
+  useEffect(() => { allLeadsFetch().then(setAllLeads); }, [allLeadsFetch]);
+  const verticalCount = (v: string) => v === 'all' ? allLeads.length : allLeads.filter(l => (l.vertical ?? 'engineering') === v).length;
 
   const byStage = (key: string) => leads.filter(l => l.stage === key);
   const activeLead = activeId ? leads.find(l => l.id === activeId) : null;
@@ -152,6 +172,33 @@ export default function PipelinePage() {
             {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
         )}
+      </div>
+
+      {/* Vertical tabs */}
+      <div className="border-b border-slate-800">
+        <div className="flex gap-0.5 overflow-x-auto">
+          {[{ key: 'all', label: 'All' }, ...LEAD_VERTICALS].map(v => {
+            const isActive = vertical === v.key;
+            const vc = VERTICAL_COLORS[v.key] ?? VERTICAL_COLORS['all'];
+            const count = verticalCount(v.key);
+            return (
+              <button
+                key={v.key}
+                onClick={() => setVertical(v.key)}
+                className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                  isActive ? vc.active : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {v.label}
+                {count > 0 && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${isActive ? 'bg-slate-700' : 'bg-slate-800 text-slate-600'}`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="overflow-x-auto pb-4">
         <DndContext sensors={sensors} collisionDetection={closestCorners}

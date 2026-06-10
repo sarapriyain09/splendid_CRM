@@ -135,6 +135,27 @@ export default function SettingsPage() {
           </button>
         </form>
       </div>
+
+      {/* LinkedIn integration */}
+      <div className="space-y-4">
+        <h2 className="text-sm font-semibold text-slate-300">LinkedIn Lead Generation</h2>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+          <p className="text-sm text-slate-400">
+            Import leads from LinkedIn Lead Gen Forms. Set the following environment variables in your <code className="text-slate-300">.env</code> file, then connect from the{' '}
+            <a href="/linkedin" className="text-blue-400 hover:text-blue-300 underline">LinkedIn Leads</a> page.
+          </p>
+          <div className="bg-slate-800 rounded-lg p-4 text-xs font-mono text-slate-300 space-y-1">
+            <div>LINKEDIN_CLIENT_ID=<span className="text-slate-500">your_app_client_id</span></div>
+            <div>LINKEDIN_CLIENT_SECRET=<span className="text-slate-500">your_app_client_secret</span></div>
+            <div>LINKEDIN_REDIRECT_URI=<span className="text-slate-500">https://your-domain.com/api/linkedin/callback</span></div>
+          </div>
+          <p className="text-xs text-slate-500">
+            Create a LinkedIn Developer App at{' '}
+            <span className="text-slate-400">developer.linkedin.com</span> with the{' '}
+            <code>r_ads</code> and <code>r_ads_reporting</code> OAuth scopes.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -18,6 +18,11 @@ export type LeadSource =
   | 'referral'
   | 'google'
   | 'other';
+export type LeadVertical =
+  | 'industry_4_0'
+  | 'engineering'
+  | 'digital'
+  | 'software';
 export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
 
 export interface User {
@@ -55,6 +60,23 @@ export interface Lead {
   sms_sent_at: string | null;
   sms_message: string | null;
   created_by: number | null;
+  tps_status: 'clean' | 'tps' | 'ctps' | 'tps_and_ctps' | 'unchecked' | null;
+  tps_checked_at: string | null;
+  vertical: LeadVertical | null;
+  // Engineering scoring fields
+  contact_name:        string | null;
+  employee_count:      number | null;
+  linkedin_url:        string | null;
+  eng_sector:          string | null;
+  linkedin_hiring:     string | null;
+  decision_maker_role: string | null;
+  growth_signal:       string | null;
+  linkedin_engagement: string | null;
+  eng_score:           number | null;
+  eng_grade:           string | null;
+  next_followup_date:  string | null;
+  opportunity_value:   number | null;
+  interest_level:      string | null;
 }
 
 export interface Contact {
@@ -133,6 +155,13 @@ export const PIPELINE_STAGES: { key: LeadStage; label: string }[] = [
   { key: 'negotiation', label: 'Negotiation' },
   { key: 'won', label: 'Won' },
   { key: 'lost', label: 'Lost' },
+];
+
+export const LEAD_VERTICALS: { key: LeadVertical; label: string; color: string }[] = [
+  { key: 'industry_4_0', label: 'Industry 4.0', color: 'cyan'    },
+  { key: 'engineering',  label: 'Engineering',  color: 'blue'    },
+  { key: 'digital',      label: 'Digital',      color: 'violet'  },
+  { key: 'software',     label: 'Software',     color: 'emerald' },
 ];
 
 export const LEAD_SOURCES: { key: LeadSource; label: string }[] = [

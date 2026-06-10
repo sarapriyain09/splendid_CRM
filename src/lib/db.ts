@@ -107,6 +107,37 @@ function initSchema(db: Database.Database) {
       unit_price  REAL    NOT NULL DEFAULT 0,
       amount      REAL    NOT NULL DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS linkedin_tokens (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      access_token  TEXT    NOT NULL,
+      expires_at    TEXT    NOT NULL,
+      scope         TEXT,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS linkedin_imported (
+      form_response_id TEXT PRIMARY KEY,
+      lead_id          INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+      imported_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_actions (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id      TEXT,
+      lead_id       INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+      call_id       TEXT,
+      summary       TEXT,
+      action_type   TEXT    NOT NULL,
+      action_title  TEXT    NOT NULL,
+      payload_json  TEXT,
+      status        TEXT    NOT NULL DEFAULT 'pending_review',
+      source        TEXT    NOT NULL DEFAULT 'callcrm',
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      reviewed_at   TEXT,
+      executed_at   TEXT
+    );
   `);
 
   // Migrations — safe to run on existing DBs
@@ -127,8 +158,80 @@ function initSchema(db: Database.Database) {
   if (!colNames.includes('created_by')) {
     db.exec(`ALTER TABLE leads ADD COLUMN created_by INTEGER REFERENCES users(id)`);
   }
+  if (!colNames.includes('tps_status')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN tps_status TEXT`);
+  }
+  if (!colNames.includes('tps_checked_at')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN tps_checked_at TEXT`);
+  }
+  if (!colNames.includes('vertical')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN vertical TEXT NOT NULL DEFAULT 'general'`);
+  }
+  // Engineering scoring columns
+  if (!colNames.includes('contact_name')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN contact_name TEXT`);
+  }
+  if (!colNames.includes('employee_count')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN employee_count INTEGER`);
+  }
+  if (!colNames.includes('linkedin_url')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN linkedin_url TEXT`);
+  }
+  if (!colNames.includes('eng_sector')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN eng_sector TEXT`);
+  }
+  if (!colNames.includes('linkedin_hiring')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN linkedin_hiring TEXT`);
+  }
+  if (!colNames.includes('decision_maker_role')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN decision_maker_role TEXT`);
+  }
+  if (!colNames.includes('growth_signal')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN growth_signal TEXT`);
+  }
+  if (!colNames.includes('linkedin_engagement')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN linkedin_engagement TEXT`);
+  }
+  if (!colNames.includes('eng_score')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN eng_score INTEGER DEFAULT 0`);
+  }
+  if (!colNames.includes('eng_grade')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN eng_grade TEXT DEFAULT 'D'`);
+  }
+  if (!colNames.includes('next_followup_date')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN next_followup_date TEXT`);
+  }
+  if (!colNames.includes('opportunity_value')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN opportunity_value REAL`);
+  }
+  if (!colNames.includes('interest_level')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN interest_level TEXT`);
+  }
 
-  // Users table migrations
+  // ── Vertical normalisation migration ─────────────────────────────────────
+  // companies_house source → engineering (manufacturing prospects)
+  db.exec(`UPDATE leads SET vertical = 'engineering' WHERE source = 'companies_house' AND (vertical IS NULL OR vertical IN ('general','automation','engineering'))`);
+  // accountant-targeted leads → digital
+  db.exec(`UPDATE leads SET vertical = 'digital' WHERE (sic_label LIKE '%account%' OR notes LIKE '%accountant%') AND vertical NOT IN ('engineering','industry_4_0','software','digital')`);
+  // automation → engineering (closest match)
+  db.exec(`UPDATE leads SET vertical = 'engineering' WHERE vertical = 'automation'`);
+  // remaining general (web/website service leads) → digital
+  db.exec(`UPDATE leads SET vertical = 'digital' WHERE vertical = 'general' OR vertical IS NULL`);
+  // food / restaurant leads → digital (overrides any vertical including engineering)
+  db.exec(`UPDATE leads SET vertical = 'digital' WHERE (
+    sic_label LIKE '%restaurant%' OR sic_label LIKE '%food%' OR sic_label LIKE '%cater%' OR
+    sic_label LIKE '%takeaway%'   OR sic_label LIKE '%cafe%'  OR sic_label LIKE '%pub%'  OR
+    notes     LIKE '%restaurant%' OR notes     LIKE '%food%'  OR notes     LIKE '%cater%' OR
+    company_name LIKE '%food%'    OR company_name LIKE '%foods%' OR company_name LIKE '%chilled%' OR
+    company_name LIKE '%sausage%' OR company_name LIKE '%saladwork%'
+  )`);
+  // accountant leads → digital
+  db.exec(`UPDATE leads SET vertical = 'digital' WHERE (
+    company_name LIKE '%account%' OR company_name LIKE '%acca%' OR
+    company_name LIKE '%chartered%' OR company_name LIKE '%bookkeep%' OR
+    sic_label LIKE '%account%'
+  ) AND vertical NOT IN ('industry_4_0','software')`);
+  // ─────────────────────────────────────────────────────────────────────────
   const userCols = db.prepare(`PRAGMA table_info(users)`).all() as { name: string }[];
   const userColNames = userCols.map(c => c.name);
   if (!userColNames.includes('phone')) {

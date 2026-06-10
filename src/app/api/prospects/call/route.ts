@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getDb } from '@/lib/db';
+import { checkTps, isTpsBlocked, tpsStatusLabel } from '@/lib/tps-checker';
 import twilio from 'twilio';
 
 export async function POST(req: NextRequest) {
@@ -40,6 +41,43 @@ export async function POST(req: NextRequest) {
   if (prospectNumber.startsWith('0')) prospectNumber = '+44' + prospectNumber.slice(1);
   if (!prospectNumber.startsWith('+')) prospectNumber = '+44' + prospectNumber;
 
+  // ── TPS / CTPS check ────────────────────────────────────────────────────────
+  // Check whether the number is registered with the Telephone Preference Service
+  // (TPS) or Corporate TPS (CTPS) before placing an outbound marketing call.
+  const db = getDb();
+
+  // Use a cached result if checked within the last 30 days
+  const cachedLead = db.prepare(
+    `SELECT tps_status, tps_checked_at FROM leads WHERE id = ?`
+  ).get(body.leadId) as { tps_status: string | null; tps_checked_at: string | null } | undefined;
+
+  let tpsStatus = cachedLead?.tps_status ?? null;
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const cacheStale = !cachedLead?.tps_checked_at || cachedLead.tps_checked_at < thirtyDaysAgo;
+
+  if (!tpsStatus || cacheStale) {
+    const result = await checkTps(body.to);
+    tpsStatus = result.status;
+    // Only cache a real result — don't cache 'unchecked' so that adding
+    // a TPS_API_KEY later will trigger a fresh check.
+    if (result.checked) {
+      db.prepare(
+        `UPDATE leads SET tps_status = @tps_status, tps_checked_at = @checked_at WHERE id = @id`
+      ).run({ tps_status: result.status, checked_at: result.checkedAt, id: body.leadId });
+    }
+  }
+
+  if (isTpsBlocked(tpsStatus as any)) {
+    return NextResponse.json(
+      {
+        error: 'tps_registered',
+        message: `This number is ${tpsStatusLabel(tpsStatus as any)}. Calling this number for marketing purposes may breach PECR and ICO regulations.`,
+      },
+      { status: 403 },
+    );
+  }
+  // ────────────────────────────────────────────────────────────────────────────
+
   // Normalise caller phone to E.164
   let callerE164 = callerPhone.replace(/\s+/g, '');
   if (callerE164.startsWith('0')) callerE164 = '+44' + callerE164.slice(1);
@@ -61,7 +99,6 @@ export async function POST(req: NextRequest) {
     });
 
     // Log the call as a note on the lead
-    const db = getDb();
     db.prepare(`
       INSERT INTO notes (lead_id, user_id, content, created_at)
       VALUES (@lead_id, @user_id, @body, datetime('now'))

@@ -2,6 +2,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import type { Lead } from '@/lib/types';
+import { LEAD_VERTICALS } from '@/lib/types';
+
+const VERTICAL_COLORS: Record<string, string> = {
+  industry_4_0: 'border-b-2 border-cyan-400 text-cyan-400',
+  engineering:  'border-b-2 border-blue-400 text-blue-400',
+  digital:      'border-b-2 border-violet-400 text-violet-400',
+  software:     'border-b-2 border-emerald-400 text-emerald-400',
+  all:          'border-b-2 border-white text-white',
+};
 
 function scoreColor(score: number) {
   if (score >= 70) return 'bg-red-900 text-red-200';
@@ -112,6 +121,46 @@ function buildEmail(prospect: Lead): { subject: string; message: string } {
   const name    = prospect.company_name;
   const isAccountant = /account/i.test(prospect.company_name);
   const isNewCompany = prospect.source === 'companies_house';
+  const isEngineering = prospect.vertical === 'engineering';
+
+  if (isEngineering) {
+    const subject = `Engineering Design & CAD Support – Splendid Engineering Services`;
+    const message =
+`Dear ${name},
+
+I hope this message finds you well.
+
+My name is Raja Saravanan, and I reach out on behalf of Splendid Engineering Services — a UK-based engineering support company specialising in CAD design, CAE analysis, and technical drafting for manufacturers.
+
+We work with manufacturing companies across the Midlands and the UK, providing flexible engineering capacity without the overhead of permanent hires:
+
+  • 2D & 3D CAD Design — SolidWorks, Autodesk Inventor, AutoCAD
+  • FEA / Structural Analysis — stress, fatigue, thermal
+  • CFD Analysis — fluid flow and thermal simulation
+  • Manufacturing & Assembly Drawings
+  • Reverse Engineering & Design Modifications
+  • Engineering Documentation & Technical Reports
+
+We understand that manufacturers often face peaks in design workload — new product launches, contract wins, or engineering team gaps. That is exactly where we step in.
+
+I would love to connect and learn more about your current engineering challenges — no sales pitch, just a straightforward conversation.
+
+Would you be open to a brief 15-minute call this week?
+
+Kind regards,
+
+Raja Saravanan
+Founder & Business Development Lead
+
+Splendid Engineering Services
+
+📞 Mobile: 07723 144910
+📧 raja@splendidtechnology.co.uk
+🌐 www.splendidtechnology.co.uk
+
+CAD Design | FEA Analysis | CFD | Drafting | Reverse Engineering`;
+    return { subject, message };
+  }
 
   if (isNewCompany && !isAccountant) {
     const subject = `Congratulations on Your New Business – Splendid Technology`;
@@ -138,7 +187,7 @@ Founder & Business Development Lead
 
 Splendid Technology
 
-📞 Mobile: 07721 952967
+📞 Mobile: 07723 144910
 📧 raja@splendidtechnology.co.uk
 🌐 www.splendidtechnology.co.uk
 
@@ -172,7 +221,7 @@ Founder & Business Development Lead
 
 Splendid Technology
 
-📞 Mobile: 07721 952967
+📞 Mobile: 07723 144910
 📧 raja@splendidtechnology.co.uk
 🌐 www.splendidtechnology.co.uk
 
@@ -192,8 +241,8 @@ Websites | Hosting | Business Email | CRM Solutions | Business Process Automatio
   const subject = `Your website – quick note from Splendid Technology`;
   const hasNoWebsite = reasons.some(r => r.toLowerCase().includes('no website'));
   const message = hasNoWebsite
-    ? `Hi ${name},\n\nI noticed your business doesn't currently have a website. In today's market, most customers search online before making a call — so not having a website means missing out on new enquiries every day.\n\nAt Splendid Technology, we build professional, mobile-friendly websites starting from just £499. We'd love to help get you online.\n\nWould you be open to a free 15-minute chat this week?\n\nKind regards,\n\nRaja Saravanan\nFounder & Business Development Lead\n\nSplendid Technology\n\n📞 Mobile: 07721 952967\n📧 raja@splendidtechnology.co.uk\n🌐 www.splendidtechnology.co.uk\n\nWebsites | Hosting | Business Email | CRM Solutions | Business Process Automation`
-    : `Hi ${name},\n\nI came across your website and noticed a few things that could be holding your business back online:\n\n${issueLines || '  • Several improvements available'}\n\nAt Splendid Technology, we help businesses like yours fix these issues quickly and affordably — with no jargon.\n\nWould you be open to a free 15-minute call this week to see if we can help?\n\nKind regards,\n\nRaja Saravanan\nFounder & Business Development Lead\n\nSplendid Technology\n\n📞 Mobile: 07721 952967\n📧 raja@splendidtechnology.co.uk\n🌐 www.splendidtechnology.co.uk\n\nWebsites | Hosting | Business Email | CRM Solutions | Business Process Automation`;
+    ? `Hi ${name},\n\nI noticed your business doesn't currently have a website. In today's market, most customers search online before making a call — so not having a website means missing out on new enquiries every day.\n\nAt Splendid Technology, we build professional, mobile-friendly websites starting from just £499. We'd love to help get you online.\n\nWould you be open to a free 15-minute chat this week?\n\nKind regards,\n\nRaja Saravanan\nFounder & Business Development Lead\n\nSplendid Technology\n\n📞 Mobile: 07723 144910\n📧 raja@splendidtechnology.co.uk\n🌐 www.splendidtechnology.co.uk\n\nWebsites | Hosting | Business Email | CRM Solutions | Business Process Automation`
+    : `Hi ${name},\n\nI came across your website and noticed a few things that could be holding your business back online:\n\n${issueLines || '  • Several improvements available'}\n\nAt Splendid Technology, we help businesses like yours fix these issues quickly and affordably — with no jargon.\n\nWould you be open to a free 15-minute call this week to see if we can help?\n\nKind regards,\n\nRaja Saravanan\nFounder & Business Development Lead\n\nSplendid Technology\n\n📞 Mobile: 07723 144910\n📧 raja@splendidtechnology.co.uk\n🌐 www.splendidtechnology.co.uk\n\nWebsites | Hosting | Business Email | CRM Solutions | Business Process Automation`;
   return { subject, message };
 }
 
@@ -338,6 +387,7 @@ export default function ProspectsPage() {
   const [emailTarget,     setEmailTarget]     = useState<Lead | null>(null);
   const [smsTarget,       setSmsTarget]       = useState<Lead | null>(null);
   const [filterContacted, setFilterContacted] = useState<'all' | 'contacted' | 'not_contacted'>('all');
+  const [vertical,        setVertical]        = useState<string>('all');
   const [createdBy,       setCreatedBy]       = useState('');
   const [users,           setUsers]           = useState<{ id: number; name: string }[]>([]);
   const [selected,        setSelected]        = useState<Set<number>>(new Set());
@@ -349,12 +399,13 @@ export default function ProspectsPage() {
   const fetchProspects = useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams({ stage: 'prospect' });
-    if (search)    p.set('search', search);
-    if (createdBy) p.set('assigned_to', createdBy);
+    if (search)              p.set('search', search);
+    if (createdBy)           p.set('assigned_to', createdBy);
+    if (vertical !== 'all')  p.set('vertical', vertical);
     const data = await fetch(`/api/leads?${p}`).then(r => r.json());
     setProspects(Array.isArray(data) ? data : []);
     setLoading(false);
-  }, [search, createdBy]);
+  }, [search, createdBy, vertical]);
 
   useEffect(() => { fetchProspects(); }, [fetchProspects]);
   useEffect(() => {
@@ -373,7 +424,11 @@ export default function ProspectsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setCallError(data.error ?? 'Failed to initiate call');
+        if (data.error === 'tps_registered') {
+          setCallError(`🚫 TPS Blocked — ${data.message}`);
+        } else {
+          setCallError(data.error ?? 'Failed to initiate call');
+        }
       } else {
         // Brief success flash then refresh notes
         fetchProspects();
@@ -484,6 +539,25 @@ export default function ProspectsPage() {
         </div>
       </div>
 
+      {/* Vertical tabs */}
+      <div className="border-b border-slate-800">
+        <div className="flex gap-0.5 overflow-x-auto">
+          {[{ key: 'all', label: 'All' }, ...LEAD_VERTICALS].map(v => {
+            const isActive = vertical === v.key;
+            const activeClass = VERTICAL_COLORS[v.key] ?? VERTICAL_COLORS['all'];
+            const count = v.key === 'all' ? prospects.length : 0; // loaded from server
+            return (
+              <button key={v.key} onClick={() => setVertical(v.key)}
+                className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                  isActive ? activeClass : 'text-slate-500 hover:text-slate-300'
+                }`}>
+                {v.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Bulk action bar */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-3 bg-red-950 border border-red-800 rounded-xl">
@@ -580,15 +654,36 @@ export default function ProspectsPage() {
                       {p.sic_label && <div className="text-xs text-slate-600">{p.sic_label}</div>}
                     </td>
                     <td className="px-3 py-3">
-                      {p.phone && <div className="text-xs text-slate-300">{p.phone}</div>}
+                      {p.phone && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs text-slate-300">{p.phone}</span>
+                          {p.tps_status === 'tps' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-900 text-red-300 font-medium">TPS</span>}
+                          {p.tps_status === 'ctps' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900 text-orange-300 font-medium">CTPS</span>}
+                          {p.tps_status === 'tps_and_ctps' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-900 text-red-300 font-medium">TPS+CTPS</span>}
+                        </div>
+                      )}
+                      {p.contact_name && (
+                        <div className="text-xs text-slate-300 font-medium">{p.contact_name}</div>
+                      )}
                       {p.website && (
                         <a href={p.website} target="_blank" rel="noreferrer"
                           className="text-xs text-blue-400 hover:text-blue-300 block truncate max-w-[160px]">
                           {p.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                         </a>
                       )}
-                      {p.email && <div className="text-xs text-slate-400 truncate max-w-[160px]">{p.email}</div>}
-                      {!p.phone && !p.website && !p.email && <span className="text-xs text-slate-600">No contact info</span>}
+                      {p.email && (
+                        <a href={`mailto:${p.email}`}
+                          className="text-xs text-emerald-400 hover:text-emerald-300 block truncate max-w-[160px]">
+                          ✉ {p.email}
+                        </a>
+                      )}
+                      {p.linkedin_url && (
+                        <a href={p.linkedin_url} target="_blank" rel="noreferrer"
+                          className="text-xs text-blue-400 hover:text-blue-300 block mt-0.5">
+                          in LinkedIn
+                        </a>
+                      )}
+                      {!p.phone && !p.website && !p.email && !p.contact_name && <span className="text-xs text-slate-600">No contact info</span>}
                     </td>
                     <td className="px-3 py-3 max-w-[200px]">
                       {p.notes ? (
@@ -633,12 +728,22 @@ export default function ProspectsPage() {
                             {p.sms_sent_at ? '📱 SMS Again' : '📱 Send SMS'}
                           </button>
                         )}
-                        {p.phone && (
-                          <button onClick={() => initiateCall(p)} disabled={callingId === p.id}
-                            className="text-xs px-3 py-1.5 bg-green-800 hover:bg-green-700 disabled:bg-slate-700 disabled:text-slate-500 text-green-100 rounded-lg font-medium transition-colors whitespace-nowrap">
-                            {callingId === p.id ? '📞 Calling…' : '📞 Call'}
-                          </button>
-                        )}
+                        {p.phone && (() => {
+                          const tpsBlocked = p.tps_status === 'tps' || p.tps_status === 'ctps' || p.tps_status === 'tps_and_ctps';
+                          return (
+                            <button
+                              onClick={() => !tpsBlocked && initiateCall(p)}
+                              disabled={callingId === p.id || tpsBlocked}
+                              title={tpsBlocked ? `Cannot call — ${p.tps_status === 'tps_and_ctps' ? 'TPS & CTPS' : p.tps_status?.toUpperCase()} registered` : undefined}
+                              className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                                tpsBlocked
+                                  ? 'bg-red-950 text-red-400 cursor-not-allowed'
+                                  : 'bg-green-800 hover:bg-green-700 disabled:bg-slate-700 disabled:text-slate-500 text-green-100'
+                              }`}>
+                              {callingId === p.id ? '📞 Calling…' : tpsBlocked ? '🚫 TPS Blocked' : '📞 Call'}
+                            </button>
+                          );
+                        })()}
                         {!p.contacted_at && (
                           <button onClick={() => markContacted(p.id)} disabled={markingId === p.id}
                             className="text-xs px-3 py-1.5 bg-emerald-900 hover:bg-emerald-800 disabled:bg-slate-700 disabled:text-slate-500 text-emerald-200 rounded-lg font-medium transition-colors whitespace-nowrap">

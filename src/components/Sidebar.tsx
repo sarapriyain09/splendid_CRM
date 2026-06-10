@@ -12,6 +12,7 @@ const NAV = [
   { href: '/pipeline',        icon: '⊟', label: 'Pipeline'             },
   { href: '/quotes',          icon: '◻', label: 'Quotes'               },
   { href: '/tasks',           icon: '✓', label: 'Tasks'                },
+  { href: '/linkedin',        icon: 'in', label: 'LinkedIn Leads'      },
   { href: '/settings',        icon: '⚙', label: 'Settings'             },
 ];
 
@@ -20,33 +21,33 @@ export default function Sidebar() {
   const { data: session } = useSession();
 
   return (
-    <aside className="w-56 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col min-h-screen">
+    <aside className="sidebar-scroll w-60 flex-shrink-0 bg-[#0f1d33] border-r border-[#1d2f4f] flex flex-col h-screen sticky top-0 overflow-y-auto">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-slate-800">
+      <div className="px-5 py-4 border-b border-[#1d2f4f]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">ST</div>
+          <div className="w-9 h-9 rounded-lg bg-[#2f65c8] shadow-sm flex items-center justify-center text-white font-bold text-sm">ST</div>
           <div>
-            <div className="text-sm font-bold text-slate-100 leading-tight">Splendid CRM</div>
-            <div className="text-xs text-slate-500">Splendid Technology</div>
+            <div className="text-sm font-bold text-[#edf3ff] leading-tight">Splendid CRM</div>
+            <div className="text-xs text-[#b8c8e6]">Splendid Technology</div>
           </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 px-3 py-3 space-y-1">
         {NAV.map(({ href, icon, label }) => {
           const active = href === '/dashboard' ? path === '/dashboard' : path.startsWith(href);
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
                 active
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+                  ? 'bg-white text-[#10213d] shadow-sm'
+                  : 'text-[#dbe7ff] hover:text-white hover:bg-[#173156]'
               }`}
             >
-              <span className="text-base w-5 text-center">{icon}</span>
+              <span className="text-base w-5 text-center opacity-90">{icon}</span>
               {label}
             </Link>
           );
@@ -54,14 +55,14 @@ export default function Sidebar() {
       </nav>
 
       {/* User */}
-      <div className="px-3 py-4 border-t border-slate-800">
-        <div className="px-3 py-2 rounded-lg bg-slate-800">
-          <div className="text-xs text-slate-300 font-medium truncate">{session?.user?.name ?? 'User'}</div>
-          <div className="text-xs text-slate-500 truncate">{session?.user?.email}</div>
+      <div className="px-3 py-4 border-t border-[#1d2f4f]">
+        <div className="px-3 py-2 rounded-md bg-[#132845] border border-[#2a4369]">
+          <div className="text-xs text-[#edf3ff] font-medium truncate">{session?.user?.name ?? 'User'}</div>
+          <div className="text-xs text-[#b8c8e6] truncate">{session?.user?.email}</div>
         </div>
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
-          className="mt-2 w-full text-xs text-slate-500 hover:text-slate-300 py-1 transition-colors"
+          className="mt-2 w-full text-xs text-[#c7d6f2] hover:text-white py-1 transition-colors"
         >
           Sign out
         </button>

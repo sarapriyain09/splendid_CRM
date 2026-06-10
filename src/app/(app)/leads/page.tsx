@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import type { Lead, LeadStage } from '@/lib/types';
-import { PIPELINE_STAGES, LEAD_SOURCES } from '@/lib/types';
+import { PIPELINE_STAGES, LEAD_SOURCES, LEAD_VERTICALS } from '@/lib/types';
 
 const STAGE_COLORS: Record<string, string> = {
   prospect:'purple', lead:'slate', contacted:'blue', meeting_scheduled:'violet', requirements:'amber',
@@ -26,6 +26,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [search, setSearch] = useState('');
   const [stage,  setStage]  = useState('');
+  const [vertical, setVertical] = useState('');
   const [createdBy, setCreatedBy] = useState('');
   const [users,  setUsers]  = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,11 +37,12 @@ export default function LeadsPage() {
     const p = new URLSearchParams();
     if (search)    p.set('search', search);
     if (stage)     p.set('stage', stage);
+    if (vertical)  p.set('vertical', vertical);
     if (createdBy) p.set('assigned_to', createdBy);
     const data = await fetch(`/api/leads?${p}`).then(r => r.json());
     setLeads(Array.isArray(data) ? data : []);
     setLoading(false);
-  }, [search, stage, createdBy]);
+  }, [search, stage, vertical, createdBy]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useEffect(() => {
@@ -121,6 +123,14 @@ export default function LeadsPage() {
           <option value="">All stages</option>
           {PIPELINE_STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
+        <select
+          value={vertical}
+          onChange={e => setVertical(e.target.value)}
+          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+        >
+          <option value="">All verticals</option>
+          {LEAD_VERTICALS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+        </select>
         {users.length > 0 && (
           <select
             value={createdBy}
@@ -151,6 +161,7 @@ export default function LeadsPage() {
                 <th className="px-4 py-3 text-center w-14">Score</th>
                 <th className="px-4 py-3 text-left">Company</th>
                 <th className="px-4 py-3 text-left">Location</th>
+                <th className="px-4 py-3 text-left">Vertical</th>
                 <th className="px-4 py-3 text-left">Source</th>
                 <th className="px-4 py-3 text-left">Stage</th>
                 <th className="px-4 py-3 text-left">Added</th>
@@ -175,6 +186,17 @@ export default function LeadsPage() {
                     {l.sic_label && <div className="text-xs text-slate-500">{l.sic_label}</div>}
                   </td>
                   <td className="px-4 py-3 text-slate-400">{l.location ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const v = LEAD_VERTICALS.find(v => v.key === (l.vertical ?? 'general'));
+                      const cls: Record<string,string> = {
+                        cyan:'bg-cyan-900 text-cyan-300', blue:'bg-blue-900 text-blue-300',
+                        violet:'bg-violet-900 text-violet-300', emerald:'bg-emerald-900 text-emerald-300',
+                        slate:'bg-slate-800 text-slate-400',
+                      };
+                      return <span className={`px-2 py-0.5 rounded text-xs font-medium ${cls[v?.color ?? 'slate']}`}>{v?.label ?? 'General'}</span>;
+                    })()}
+                  </td>
                   <td className="px-4 py-3 text-slate-400 capitalize">{l.source.replace('_',' ')}</td>
                   <td className="px-4 py-3">{stageBadge(l.stage)}</td>
                   <td className="px-4 py-3 text-slate-500 text-xs">{l.created_at.slice(0,10)}</td>

@@ -1,6 +1,8 @@
 'use client';
 import { useState, useCallback } from 'react';
 import type { WebsiteAnalysis } from '@/lib/prospect-scorer';
+import { getSicDescription } from '@/lib/sic-codes';
+import { computeEngScore, engGradeColor, type EngSector, type LinkedInHiring, type GrowthSignal, type DecisionMakerRole, type LinkedInEngagement } from '@/lib/eng-scorer';
 
 // ─── Google Places (via server proxy) ───────────────────────────────────────
 const SEGMENT_QUERIES: Record<string, string> = {
@@ -571,9 +573,595 @@ function V2ScorerTab() {
   );
 }
 
+// ─── CH Engineering (Companies House) Tab ───────────────────────────────────
+const ENG_SIC_GROUPS = [
+  {
+    key: 'all_eng', label: 'All Engineering',
+    codes: ['25110','25120','25290','25300','25500','25610','25620','25710','25720','25730','25910','25920','25930','25940','25990','28110','28120','28130','28140','28150','28210','28220','28240','28250','28290','28300','28410','28490','28910','28920','28930','28940','28950','28960','28990','29100','29200','29310','29320','30300','30400','33110','33120','33130','33140','33190','33200'],
+  },
+  { key: 'sheet_metal', label: 'Sheet Metal & Fabrication', codes: ['25110','25120','25290','25300','25500','25610','25620','25710','25720','25730','25910','25920','25930','25940','25990'] },
+  { key: 'machinery',   label: 'Special Purpose Machinery',  codes: ['28110','28120','28130','28140','28150','28210','28220','28240','28250','28290','28300','28410','28490','28910','28920','28930','28940','28950','28960','28990'] },
+  { key: 'automotive',  label: 'Automotive Suppliers',       codes: ['29100','29200','29310','29320'] },
+  { key: 'aerospace',   label: 'Aerospace & Defence',        codes: ['30300','30400'] },
+  { key: 'repair',      label: 'Repair & Installation',      codes: ['33110','33120','33130','33140','33190','33200'] },
+];
+
+const CH_ENG_LOCATIONS = ['Leicester','Coventry','Birmingham','Derby','Nottingham','Sheffield','Peterborough'];
+
+interface CHResult {
+  company_name: string;
+  company_number: string;
+  date_of_creation: string;
+  registered_office_address: { address_line_1?: string; locality?: string; postal_code?: string };
+  sic_codes: string[];
+  officers: Array<{ name: string; officer_role: string }> | null;
+  officersState: 'idle' | 'loading' | 'done';
+  pushState: 'idle' | 'pushing' | 'done' | 'exists';
+  // auto-detected signals
+  empCount: number | null;
+  website: string | null;
+  emails: string[];
+  hiringSignal: LinkedInHiring;
+  growthSignal: GrowthSignal;
+  decisionMakerRole: DecisionMakerRole;
+  engagement: LinkedInEngagement;
+  autoScoreState: 'idle' | 'loading' | 'done';
+}
+
+const liCompanyUrl = (name: string) =>
+  `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(name)}`;
+const liPersonUrl = (personName: string, companyName: string) =>
+  `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${personName} ${companyName}`)}`;
+
+const LiIcon = () => (
+  <svg className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+  </svg>
+);
+
+function sicToSector(sics: string[]): EngSector {
+  for (const s of sics) {
+    if (['30300','30400'].includes(s))                  return 'aerospace';
+    if (['29100','29200','29310','29320'].includes(s))  return 'automotive';
+    if (s === '28290')                                 return 'special_purpose';
+    if (s.startsWith('28'))                            return 'machinery_automation';
+    if (s.startsWith('25') || s.startsWith('33'))      return 'fabrication';
+    if (s.startsWith('26'))                            return 'electronics';
+    if (s.startsWith('27') || s.startsWith('32'))      return 'industrial_equipment';
+  }
+  return 'other';
+}
+
+function CHPushButton({ result, engScore, engGrade, onDone }: {
+  result: CHResult;
+  engScore: number;
+  engGrade: string;
+  onDone: (num: string, state: 'done' | 'exists') => void;
+}) {
+  const [state,    setState]    = useState<'idle' | 'pushing' | 'done' | 'exists'>(result.pushState);
+  const [vertical, setVertical] = useState<string>('engineering');
+
+  async function push() {
+    setState('pushing');
+    const addr = result.registered_office_address;
+    const sector = sicToSector(result.sic_codes);
+    const firstOfficer = result.officers?.[0] ?? null;
+    const res = await fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        company_name:      result.company_name,
+        company_number:    result.company_number,
+        location:          addr.locality ?? null,
+        postcode:          addr.postal_code ?? null,
+        website:           result.website ?? null,
+        email:             result.emails[0] ?? null,
+        contact_name:      firstOfficer ? firstOfficer.name : null,
+        linkedin_url:      `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(result.company_name)}`,
+        source:            'companies_house',
+        stage:             'prospect',
+        status:            'new',
+        vertical,
+        lead_score:        engScore,
+        eng_score:         engScore,
+        eng_grade:         engGrade,
+        employee_count:    result.empCount ?? null,
+        eng_sector:        sector || null,
+        linkedin_hiring:   result.hiringSignal !== 'none' ? result.hiringSignal : null,
+        decision_maker_role: result.decisionMakerRole !== 'none' ? result.decisionMakerRole : null,
+        growth_signal:     result.growthSignal !== 'none' ? result.growthSignal : null,
+        linkedin_engagement: result.engagement !== 'none' ? result.engagement : null,
+        notes:             `CH #${result.company_number} · SIC: ${result.sic_codes.join(', ')} · Eng Score: ${engScore}/100 (${engGrade})`,
+      }),
+    });
+    const next = res.status === 409 ? 'exists' : res.ok ? 'done' : 'idle';
+    setState(next as 'idle' | 'done' | 'exists');
+    if (next !== 'idle') onDone(result.company_number, next as 'done' | 'exists');
+  }
+
+  if (state === 'done')   return <span className="text-xs text-emerald-400 font-medium">✓ Added</span>;
+  if (state === 'exists') return <span className="text-xs text-amber-400 font-medium">Already exists</span>;
+  return (
+    <div className="flex flex-col gap-1">
+      <select
+        value={vertical}
+        onChange={e => setVertical(e.target.value)}
+        className="w-full bg-slate-800 border border-slate-700 text-[10px] text-slate-300 rounded px-1.5 py-1 focus:outline-none focus:border-emerald-500"
+      >
+        <option value="engineering">Engineering</option>
+        <option value="industry_4_0">Industry 4.0</option>
+        <option value="digital">Digital</option>
+        <option value="software">Software</option>
+      </select>
+      <button onClick={push} disabled={state === 'pushing'}
+        className="text-xs px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg font-medium transition-colors whitespace-nowrap">
+        {state === 'pushing' ? 'Saving…' : '+ Prospect'}
+      </button>
+    </div>
+  );
+}
+
+function CHEngineeringTab() {
+  const [sicGroup,  setSicGroup]  = useState('all_eng');
+  const [locations, setLocations] = useState<string[]>(['Leicester']);
+  const [results,   setResults]   = useState<CHResult[]>([]);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState('');
+  const [totalHits, setTotalHits] = useState(0);
+  const [sortBy,    setSortBy]    = useState<'score' | 'name'>('score');
+  const [filterGrade, setFilterGrade] = useState<'all' | 'A' | 'B' | 'C' | 'D'>('all');
+
+  const updateEngagement = useCallback((companyNumber: string, val: LinkedInEngagement) => {
+    setResults(prev => prev.map(r =>
+      r.company_number === companyNumber ? { ...r, engagement: val } : r,
+    ));
+  }, []);
+
+  // Auto-detect decision maker from CH officers
+  const decisionMakerFromOfficers = (officers: Array<{ name: string; officer_role: string }> | null): DecisionMakerRole => {
+    if (!officers || officers.length === 0) return 'none';
+    for (const o of officers) {
+      const role = o.officer_role.toLowerCase();
+      if (role.includes('managing')) return 'md';
+      if (role.includes('technical') || role.includes('engineer')) return 'tech_director';
+    }
+    // Any director = at least MD-level contact
+    if (officers.some(o => o.officer_role.toLowerCase().includes('director'))) return 'md';
+    return 'none';
+  };
+
+  const autoScore = useCallback(async (companyNumber: string, companyName: string) => {
+    setResults(prev => prev.map(r =>
+      r.company_number === companyNumber ? { ...r, autoScoreState: 'loading' } : r,
+    ));
+
+    let website: string | null = null;
+    let emails: string[] = [];
+    let hiringSignal: LinkedInHiring = 'none';
+    let growthSignal: GrowthSignal = 'none';
+    let empCount: number | null = null;
+
+    // Step 1: find website
+    try {
+      const wsRes = await fetch(`/api/ch/check-website?company_name=${encodeURIComponent(companyName)}`);
+      if (wsRes.ok) {
+        const wsData = await wsRes.json();
+        website = wsData.url ?? null;
+      }
+    } catch { /* ignore */ }
+
+    // Step 2: scrape company page for all signals
+    if (website) {
+      try {
+        const scrapeRes = await fetch(`/api/ch/scrape-company?url=${encodeURIComponent(website)}`);
+        if (scrapeRes.ok) {
+          const d = await scrapeRes.json();
+          emails        = d.emails        ?? [];
+          empCount      = d.employeeCount ?? null;
+          hiringSignal  = d.hiringSignal  ?? 'none';
+          growthSignal  = d.growthSignal  ?? 'none';
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Step 3: fall back to guessed emails if none found
+    if (emails.length === 0) {
+      try {
+        const guessParams = website
+          ? `website_url=${encodeURIComponent(website)}`
+          : `company_name=${encodeURIComponent(companyName)}`;
+        const guessRes = await fetch(`/api/ch/guess-email?${guessParams}`);
+        if (guessRes.ok) {
+          const guessData = await guessRes.json();
+          emails = (guessData.emails ?? []).slice(0, 2).map((e: { address: string }) => e.address);
+        }
+      } catch { /* ignore */ }
+    }
+
+    setResults(prev => prev.map(r => {
+      if (r.company_number !== companyNumber) return r;
+      // Auto-derive decision maker from officers now that officers may be loaded
+      const dm = decisionMakerFromOfficers(r.officers);
+      return { ...r, website, emails, empCount, hiringSignal, growthSignal, decisionMakerRole: dm, autoScoreState: 'done' };
+    }));
+  }, []);
+
+  const toggleLoc = (loc: string) =>
+    setLocations(prev => prev.includes(loc) ? prev.filter(l => l !== loc) : [...prev, loc]);
+
+  const fetchOfficers = useCallback(async (companyNumber: string) => {
+    try {
+      const res = await fetch(`/api/ch/officers?company_number=${companyNumber}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const officers: Array<{ name: string; officer_role: string }> = data.items ?? [];
+      // Derive decision maker role from officers
+      let dm: DecisionMakerRole = 'none';
+      for (const o of officers) {
+        const role = o.officer_role.toLowerCase();
+        if (role.includes('managing')) { dm = 'md'; break; }
+        if (role.includes('technical') || role.includes('engineer')) { dm = 'tech_director'; break; }
+      }
+      if (dm === 'none' && officers.some(o => o.officer_role.toLowerCase().includes('director'))) dm = 'md';
+      setResults(prev =>
+        prev.map(r =>
+          r.company_number === companyNumber
+            ? { ...r, officers, officersState: 'done', decisionMakerRole: r.decisionMakerRole !== 'none' ? r.decisionMakerRole : dm }
+            : r,
+        ),
+      );
+    } catch {
+      setResults(prev =>
+        prev.map(r =>
+          r.company_number === companyNumber ? { ...r, officersState: 'done', officers: [] } : r,
+        ),
+      );
+    }
+  }, []);
+
+  const search = useCallback(async () => {
+    if (locations.length === 0) { setError('Select at least one location.'); return; }
+    setLoading(true); setError(''); setResults([]); setTotalHits(0);
+
+    const group = ENG_SIC_GROUPS.find(g => g.key === sicGroup)!;
+    const params = new URLSearchParams({
+      sic_codes: group.codes.join(','),
+      locations:  locations.join(','),
+    });
+
+    try {
+      const res = await fetch(`/api/ch/existing-companies?${params}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string })?.error ?? `Error ${res.status}`);
+      }
+      const data = await res.json();
+      setTotalHits(data.hits ?? 0);
+
+      const initial: CHResult[] = (data.leads ?? []).map((lead: {
+        company: {
+          company_name: string; company_number: string; date_of_creation: string;
+          registered_office_address: CHResult['registered_office_address']; sic_codes: string[];
+        };
+      }) => ({
+        company_name:              lead.company.company_name,
+        company_number:            lead.company.company_number,
+        date_of_creation:          lead.company.date_of_creation,
+        registered_office_address: lead.company.registered_office_address,
+        sic_codes:                 lead.company.sic_codes ?? [],
+        officers:        null,
+        officersState:   'idle' as const,
+        pushState:       'idle' as const,
+        empCount:        null,
+        website:         null,
+        emails:          [],
+        hiringSignal:    'none' as const,
+        growthSignal:    'none' as const,
+        decisionMakerRole: 'none' as const,
+        engagement:      'none' as const,
+        autoScoreState:  'idle' as const,
+      }));
+
+      setResults(initial);
+      setLoading(false);
+
+      for (const r of initial) {
+        setResults(prev =>
+          prev.map(x => x.company_number === r.company_number ? { ...x, officersState: 'loading' } : x),
+        );
+        // Fetch officers + auto-score website in parallel
+        await Promise.all([
+          fetchOfficers(r.company_number),
+          autoScore(r.company_number, r.company_name),
+        ]);
+        // After officers are loaded, update decision maker role
+        setResults(prev => prev.map(x => {
+          if (x.company_number !== r.company_number) return x;
+          if (x.autoScoreState === 'done') return x; // already set in autoScore
+          return x;
+        }));
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
+      setLoading(false);
+    }
+  }, [sicGroup, locations, fetchOfficers]);
+
+  const handlePushDone = useCallback((num: string, state: 'done' | 'exists') => {
+    setResults(prev => prev.map(r => r.company_number === num ? { ...r, pushState: state } : r));
+  }, []);
+
+  const displayed = [...results]
+    .map(r => {
+      const sector = sicToSector(r.sic_codes);
+      // Re-derive decision maker from officers (may have loaded after autoScore ran)
+      const dm: DecisionMakerRole = r.decisionMakerRole !== 'none'
+        ? r.decisionMakerRole
+        : (r.officers && r.officers.some(o => o.officer_role.toLowerCase().includes('director')) ? 'md' : 'none');
+      const sr = computeEngScore({
+        employee_count:      r.empCount,
+        eng_sector:          sector,
+        linkedin_hiring:     r.hiringSignal,
+        decision_maker_role: dm,
+        growth_signal:       r.growthSignal,
+        linkedin_engagement: r.engagement,
+      });
+      return { ...r, _sector: sector, _score: sr.total, _grade: sr.grade, _dm: dm };
+    })
+    .filter(r => filterGrade === 'all' || r._grade === filterGrade)
+    .sort((a, b) => sortBy === 'score' ? b._score - a._score : a.company_name.localeCompare(b.company_name));
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Engineering Sector (SIC Code Group)</div>
+          <div className="flex flex-wrap gap-1.5">
+            {ENG_SIC_GROUPS.map(g => (
+              <button key={g.key} onClick={() => setSicGroup(g.key)}
+                className={`text-xs px-3 py-1.5 rounded-lg transition-colors font-medium ${
+                  sicGroup === g.key ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}>{g.label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Regions (multi-select)</div>
+          <div className="flex flex-wrap gap-1.5">
+            {CH_ENG_LOCATIONS.map(loc => (
+              <button key={loc} onClick={() => toggleLoc(loc)}
+                className={`text-xs px-3 py-1.5 rounded-lg transition-colors font-medium ${
+                  locations.includes(loc) ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}>{loc}</button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-4 flex-wrap">
+          <button onClick={search} disabled={loading || locations.length === 0}
+            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-semibold rounded-lg transition-colors">
+            {loading ? 'Searching CH…' : '⊡ Search Companies House'}
+          </button>
+          {totalHits > 0 && !loading && (
+            <span className="text-xs text-slate-500">
+              {totalHits.toLocaleString()} total · showing {displayed.length}/{results.length}
+            </span>
+          )}
+        </div>
+        {results.length > 0 && (
+          <div className="flex items-center gap-4 flex-wrap border-t border-slate-800 pt-4">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500 mr-1">Sort:</span>
+              {(['score','name'] as const).map(s => (
+                <button key={s} onClick={() => setSortBy(s)}
+                  className={`text-xs px-2.5 py-1 rounded-lg capitalize transition-colors ${
+                    sortBy === s ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300'
+                  }`}>{s === 'score' ? 'Eng Score' : 'Name'}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500 mr-1">Grade:</span>
+              {(['all','A','B','C','D'] as const).map(g => (
+                <button key={g} onClick={() => setFilterGrade(g)}
+                  className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${
+                    filterGrade === g
+                      ? g === 'A' ? 'bg-red-900 text-red-200'
+                        : g === 'B' ? 'bg-amber-900 text-amber-200'
+                        : g === 'C' ? 'bg-blue-900 text-blue-200'
+                        : g === 'D' ? 'bg-slate-700 text-slate-400'
+                        : 'bg-slate-700 text-slate-200'
+                      : 'text-slate-500 hover:text-slate-300'
+                  }`}>{g === 'all' ? 'All' : `Grade ${g}`}</button>
+              ))}
+            </div>
+            <span className="text-[10px] text-slate-600">💡 Enter employee count per row to improve score</span>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-800 text-red-300 text-sm rounded-xl px-4 py-3">{error}</div>
+      )}
+
+      {results.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-800 text-xs text-slate-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-center w-20">Score</th>
+                  <th className="px-3 py-3 text-left">Company</th>
+                  <th className="px-3 py-3 text-left">Location</th>
+                  <th className="px-3 py-3 text-left">SIC Codes</th>
+                  <th className="px-3 py-3 text-left">Email / Website</th>
+                  <th className="px-3 py-3 text-left">Directors &amp; LinkedIn</th>
+                  <th className="px-3 py-3 text-left">Quick Links</th>
+                  <th className="px-3 py-3 text-left">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayed.map(r => (
+                  <tr key={r.company_number} className="border-b border-slate-800 hover:bg-slate-800/40 transition-colors">
+                    <td className="px-3 py-3 text-center">
+                      <div className={`text-xl font-bold leading-none ${engGradeColor(r._grade as 'A'|'B'|'C'|'D')}`}>
+                        {r._score}<span className="text-[10px] text-slate-600 ml-0.5">/100</span>
+                      </div>
+                      <div className={`text-[10px] font-bold mt-0.5 ${
+                        r._grade === 'A' ? 'text-red-400' : r._grade === 'B' ? 'text-amber-400' : r._grade === 'C' ? 'text-blue-400' : 'text-slate-500'
+                      }`}>Grade {r._grade}</div>
+                      {/* Auto-detected signals */}
+                      <div className="mt-1.5 space-y-0.5">
+                        {r.autoScoreState === 'loading' && (
+                          <span className="text-[9px] text-slate-600 animate-pulse">Analysing…</span>
+                        )}
+                        {r.empCount != null && (
+                          <div className="text-[9px] bg-slate-800 text-slate-400 rounded px-1 py-0.5">
+                            👥 {r.empCount} emp
+                          </div>
+                        )}
+                        {r.hiringSignal !== 'none' && (
+                          <div className="text-[9px] bg-emerald-900/50 text-emerald-400 rounded px-1 py-0.5 leading-tight">
+                            {r.hiringSignal === 'design_engineer' ? '🔧 Hiring Design Eng' :
+                             r.hiringSignal === 'mechanical_engineer' ? '⚙ Hiring Mech Eng' :
+                             r.hiringSignal === 'new_product_post' ? '🚀 New Product' : '🏭 Eng Team'}
+                          </div>
+                        )}
+                        {r.growthSignal !== 'none' && (
+                          <div className="text-[9px] bg-blue-900/50 text-blue-400 rounded px-1 py-0.5 leading-tight">
+                            {r.growthSignal === 'new_factory' ? '🏗 New Factory' :
+                             r.growthSignal === 'new_product' ? '🚀 New Product' :
+                             r.growthSignal === 'contract_win' ? '📋 Contract Win' : '📈 Expanding'}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 max-w-[180px]">
+                      <div className="font-medium text-slate-100 text-sm leading-snug">{r.company_name}</div>
+                      <div className="text-[10px] text-slate-600 mt-0.5">
+                        #{r.company_number} · est. {r.date_of_creation?.slice(0, 4) ?? '—'}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">
+                      <div>{r.registered_office_address.locality ?? '—'}</div>
+                      <div className="text-[10px] text-slate-600">{r.registered_office_address.postal_code ?? ''}</div>
+                    </td>
+                    <td className="px-3 py-3 max-w-[160px]">
+                      {r.sic_codes.map(code => (
+                        <div key={code} className="text-[10px] text-slate-500 leading-snug">
+                          {code} · {getSicDescription(code)}
+                        </div>
+                      ))}
+                    </td>
+                    {/* Email / Website */}
+                    <td className="px-3 py-3 max-w-[180px]">
+                      {r.autoScoreState === 'loading' && (
+                        <span className="text-[10px] text-slate-600 animate-pulse">Searching…</span>
+                      )}
+                      {r.autoScoreState === 'idle' && (
+                        <button
+                          onClick={() => autoScore(r.company_number, r.company_name)}
+                          className="text-[10px] px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded transition-colors">
+                          Find email
+                        </button>
+                      )}
+                      {r.autoScoreState === 'done' && (
+                        <div className="space-y-1">
+                          {r.website && (
+                            <a href={r.website} target="_blank" rel="noreferrer"
+                              className="text-[10px] text-blue-400 hover:text-blue-300 block truncate max-w-[160px]">
+                              🌐 {r.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                            </a>
+                          )}
+                          {r.emails.length > 0 ? (
+                            r.emails.map(email => (
+                              <a key={email} href={`mailto:${email}`}
+                                className="text-[10px] text-emerald-400 hover:text-emerald-300 block">
+                                ✉ {email}
+                              </a>
+                            ))
+                          ) : (
+                            <div className="space-y-1">
+                              <span className="text-[10px] text-slate-600">No email found</span>
+                              <a href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent('Engineering Manager ' + r.company_name)}`}
+                                target="_blank" rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300">
+                                <LiIcon /> Find on LinkedIn
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 max-w-[220px]">
+                      {r.officersState === 'loading' && (
+                        <span className="text-[10px] text-slate-600 animate-pulse">Finding directors…</span>
+                      )}
+                      {r.officersState === 'done' && (!r.officers || r.officers.length === 0) && (
+                        <span className="text-[10px] text-slate-600">No active officers found</span>
+                      )}
+                      {r.officersState === 'done' && r.officers && r.officers.slice(0, 3).map((o, i) => (
+                        <div key={i} className={i > 0 ? 'mt-2 pt-2 border-t border-slate-800' : ''}>
+                          <div className="text-xs text-slate-200 font-medium leading-tight">{o.name}</div>
+                          <div className="text-[10px] text-slate-500 capitalize mb-1">
+                            {o.officer_role.replace(/-/g, ' ')}
+                          </div>
+                          <a href={liPersonUrl(o.name, r.company_name)} target="_blank" rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300">
+                            <LiIcon /> Search director
+                          </a>
+                        </div>
+                      ))}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap space-y-2">
+                      <a href={`https://find-and-update.company-information.service.gov.uk/company/${r.company_number}`}
+                        target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200">
+                        ⊡ Companies House
+                      </a>
+                      <a href={liCompanyUrl(r.company_name)} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300">
+                        <LiIcon /> Company LinkedIn
+                      </a>
+                    </td>
+                    <td className="px-3 py-3">
+                      {/* Engagement — only manual signal */}
+                      <div className="mb-2">
+                        <div className="text-[9px] text-slate-600 mb-1 uppercase tracking-wider">LinkedIn</div>
+                        <select
+                          value={r.engagement}
+                          onChange={e => updateEngagement(r.company_number, e.target.value as LinkedInEngagement)}
+                          className="w-full bg-slate-800 border border-slate-700 text-[10px] text-slate-300 rounded px-1.5 py-1 focus:outline-none focus:border-emerald-500"
+                        >
+                          <option value="none">No Response</option>
+                          <option value="accepted">Accepted Connection (+10)</option>
+                          <option value="replied">Replied to Message (+10)</option>
+                          <option value="meeting">Meeting Booked (+10)</option>
+                        </select>
+                      </div>
+                      <CHPushButton result={r} engScore={r._score} engGrade={r._grade} onDone={handlePushDone} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && results.length === 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl py-16 text-center">
+          <div className="text-4xl mb-3">⊡</div>
+          <p className="text-slate-400 font-medium">Search Companies House for UK engineering manufacturers</p>
+          <p className="text-slate-600 text-sm mt-1">Active companies only · auto-fetches directors · LinkedIn search links generated</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ──────────────────────────────────────────────────────────────
 export default function ProspectFinderPage() {
-  const [activeTab, setActiveTab] = useState<'v1' | 'v2'>('v1');
+  const [activeTab, setActiveTab] = useState<'v1' | 'v2' | 'ch'>('v1');
   const [segment,  setSegment]  = useState('electrician');
   const [location, setLocation] = useState('Leicester');
   const [results,  setResults]  = useState<SearchResult[]>([]);
@@ -689,9 +1277,18 @@ export default function ProspectFinderPage() {
         >
           ✦ Scorer V2 <span className="text-[10px] ml-1 opacity-60">Attribute-based</span>
         </button>
+        <button
+          onClick={() => setActiveTab('ch')}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+            activeTab === 'ch' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          ⊡ CH Engineering <span className="text-[10px] ml-1 opacity-60">Companies House</span>
+        </button>
       </div>
 
       {activeTab === 'v2' && <V2ScorerTab />}
+      {activeTab === 'ch' && <CHEngineeringTab />}
 
       {activeTab === 'v1' && (<>
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
