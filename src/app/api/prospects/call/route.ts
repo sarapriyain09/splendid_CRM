@@ -44,7 +44,6 @@ export async function POST(req: NextRequest) {
   // ── TPS / CTPS check ────────────────────────────────────────────────────────
   // Check whether the number is registered with the Telephone Preference Service
   // (TPS) or Corporate TPS (CTPS) before placing an outbound marketing call.
-  const db = getDb();
 
   // Use a cached result if checked within the last 30 days
   const cachedLead = db.prepare(
