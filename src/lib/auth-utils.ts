@@ -1,5 +1,6 @@
 import { getDb } from './db';
 import bcrypt from 'bcryptjs';
+import { isDemoMode } from './app-mode';
 
 export async function seedUsers() {
   const db = getDb();
@@ -17,8 +18,9 @@ export async function seedUsers() {
 
 export async function verifyUser(email: string, password: string) {
   const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as { id: number; name: string; email: string; password: string; role: string } | undefined;
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as { id: number; name: string; email: string; password: string; role: string; demo_verified?: number } | undefined;
   if (!user) return null;
+  if (isDemoMode() && user.role !== 'admin' && user.demo_verified !== 1) return null;
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return null;
   return { id: user.id, name: user.name, email: user.email, role: user.role };

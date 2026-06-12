@@ -3,7 +3,8 @@ import path from 'path';
 import fs from 'fs';
 
 const DB_DIR = path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DB_DIR, 'splendid-crm.db');
+const DB_FILE = (process.env.CRM_DB_FILE || 'splendid-crm.db').trim();
+const DB_PATH = path.join(DB_DIR, DB_FILE);
 
 let _db: Database.Database | null = null;
 
@@ -25,6 +26,9 @@ function initSchema(db: Database.Database) {
       email       TEXT    NOT NULL UNIQUE,
       password    TEXT    NOT NULL,
       role        TEXT    NOT NULL DEFAULT 'user',
+      demo_verified INTEGER NOT NULL DEFAULT 1,
+      demo_verify_token TEXT,
+      demo_verify_expires TEXT,
       created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -138,6 +142,20 @@ function initSchema(db: Database.Database) {
       reviewed_at   TEXT,
       executed_at   TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS demo_registrations (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      name           TEXT    NOT NULL,
+      email          TEXT    NOT NULL,
+      company        TEXT,
+      phone          TEXT,
+      verification_sent INTEGER NOT NULL DEFAULT 0,
+      source_host    TEXT,
+      ip_address     TEXT,
+      user_agent     TEXT,
+      created_user   INTEGER NOT NULL DEFAULT 0,
+      created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrations — safe to run on existing DBs
@@ -236,5 +254,20 @@ function initSchema(db: Database.Database) {
   const userColNames = userCols.map(c => c.name);
   if (!userColNames.includes('phone')) {
     db.exec(`ALTER TABLE users ADD COLUMN phone TEXT`);
+  }
+  if (!userColNames.includes('demo_verified')) {
+    db.exec(`ALTER TABLE users ADD COLUMN demo_verified INTEGER NOT NULL DEFAULT 1`);
+  }
+  if (!userColNames.includes('demo_verify_token')) {
+    db.exec(`ALTER TABLE users ADD COLUMN demo_verify_token TEXT`);
+  }
+  if (!userColNames.includes('demo_verify_expires')) {
+    db.exec(`ALTER TABLE users ADD COLUMN demo_verify_expires TEXT`);
+  }
+
+  const demoRegCols = db.prepare(`PRAGMA table_info(demo_registrations)`).all() as { name: string }[];
+  const demoRegColNames = demoRegCols.map(c => c.name);
+  if (demoRegCols.length > 0 && !demoRegColNames.includes('verification_sent')) {
+    db.exec(`ALTER TABLE demo_registrations ADD COLUMN verification_sent INTEGER NOT NULL DEFAULT 0`);
   }
 }

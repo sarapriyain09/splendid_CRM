@@ -13,12 +13,17 @@ const NAV = [
   { href: '/quotes',          icon: '◻', label: 'Quotes'               },
   { href: '/tasks',           icon: '✓', label: 'Tasks'                },
   { href: '/linkedin',        icon: 'in', label: 'LinkedIn Leads'      },
-  { href: '/settings',        icon: '⚙', label: 'Settings'             },
 ];
 
 export default function Sidebar() {
   const path = usePathname();
   const { data: session } = useSession();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  const isAdmin = role === 'admin';
+  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === '1' || process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+  const navItems = isDemoMode || !isAdmin
+    ? NAV
+    : [...NAV, { href: '/settings', icon: '⚙', label: 'Settings' }];
 
   return (
     <aside className="sidebar-scroll w-60 flex-shrink-0 bg-[#0f1d33] border-r border-[#1d2f4f] flex flex-col h-screen sticky top-0 overflow-y-auto">
@@ -35,7 +40,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 space-y-1">
-        {NAV.map(({ href, icon, label }) => {
+        {navItems.map(({ href, icon, label }) => {
           const active = href === '/dashboard' ? path === '/dashboard' : path.startsWith(href);
           return (
             <Link
