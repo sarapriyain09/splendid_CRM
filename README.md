@@ -20,6 +20,24 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## AI Assistant MVP Setup
+
+The CRM includes an in-app AI Assistant page at `/ai-assistant`.
+
+Add these environment variables:
+
+```bash
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Then run the app and sign in. The assistant supports:
+
+- CRM Q&A
+- Lead Summary
+- Follow-up Email Drafting
+- Pipeline Insights
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

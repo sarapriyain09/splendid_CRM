@@ -5,6 +5,7 @@ import { signOut, useSession } from 'next-auth/react';
 
 const NAV = [
   { href: '/dashboard',       icon: '⊞', label: 'Dashboard'           },
+  { href: '/ai-assistant',    icon: 'AI', label: 'AI Assistant'       },
   { href: '/generate',        icon: '⚡', label: 'Prospect Generator'  },
   { href: '/prospect-finder', icon: '⊙', label: 'Prospect Finder'     },
   { href: '/prospects',       icon: '◈', label: 'Prospects'            },
