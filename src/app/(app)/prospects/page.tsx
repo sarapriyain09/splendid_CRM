@@ -5,7 +5,9 @@ import type { Lead } from '@/lib/types';
 import { LEAD_VERTICALS } from '@/lib/types';
 
 const VERTICAL_COLORS: Record<string, string> = {
-  industry_4_0: 'border-b-2 border-cyan-400 text-cyan-400',
+  crm:          'border-b-2 border-amber-400 text-amber-400',
+  ai_automation:'border-b-2 border-fuchsia-400 text-fuchsia-400',
+  iot:          'border-b-2 border-cyan-400 text-cyan-400',
   engineering:  'border-b-2 border-blue-400 text-blue-400',
   digital:      'border-b-2 border-violet-400 text-violet-400',
   software:     'border-b-2 border-emerald-400 text-emerald-400',
@@ -40,6 +42,15 @@ function SmsPanel({ prospect, onClose, onSent }: {
   const [error,   setError]   = useState('');
   const [sent,    setSent]    = useState(false);
   const [notConfigured, setNotConfigured] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/outreach/templates?channel=sms&vertical=${prospect.vertical ?? 'digital'}&leadId=${prospect.id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.preview?.message) setMessage(data.preview.message as string);
+      })
+      .catch(() => {});
+  }, [prospect.id, prospect.vertical]);
 
   const charsLeft = 160 - message.length;
 
@@ -262,6 +273,16 @@ function EmailPanel({ prospect, onClose, onSent }: {
   const [notConfigured, setNotConfigured] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [scraped,  setScraped]  = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/outreach/templates?channel=email&vertical=${prospect.vertical ?? 'digital'}&leadId=${prospect.id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.preview?.subject) setSubject(data.preview.subject as string);
+        if (data?.preview?.message) setMessage(data.preview.message as string);
+      })
+      .catch(() => {});
+  }, [prospect.id, prospect.vertical]);
 
   // Auto-scrape email from website when panel opens and no email known
   useEffect(() => {

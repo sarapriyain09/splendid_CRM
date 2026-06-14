@@ -10,7 +10,7 @@ export default function NewLeadPage() {
   const [form, setForm] = useState({
     company_name: '', company_number: '', website: '', phone: '', email: '',
     location: '', postcode: '', incorporated: '', sic_code: '', sic_label: '',
-    stage: 'lead', source: 'manual', lead_score: '0', status: 'active', vertical: 'engineering',
+    stage: 'lead', source: 'manual', lead_score: '0', status: 'active', vertical: 'crm',
   });
 
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));

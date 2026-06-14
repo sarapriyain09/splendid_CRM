@@ -27,6 +27,15 @@ interface AiResponse {
   model?: string;
 }
 
+const VERTICAL_OPTIONS: Array<{ key: string; label: string }> = [
+  { key: 'crm', label: 'CRM' },
+  { key: 'digital', label: 'Digital' },
+  { key: 'software', label: 'Software' },
+  { key: 'ai_automation', label: 'AI Automation' },
+  { key: 'engineering', label: 'Engineering' },
+  { key: 'iot', label: 'IoT' },
+];
+
 const TASK_OPTIONS: Array<{ key: AiTask; label: string }> = [
   { key: 'crm_qa', label: 'CRM Q&A' },
   { key: 'lead_summary', label: 'Lead Summary' },
@@ -51,7 +60,14 @@ export default function AiAssistantPopup() {
   const [actionPage, setActionPage] = useState<ActionPage>('prospects');
   const [actionName, setActionName] = useState<ActionName>('send_email');
   const [actionScope, setActionScope] = useState<ActionScope>('selected');
-  const [actionValue, setActionValue] = useState('engineering');
+  const [actionValue, setActionValue] = useState('crm');
+  const [sendVertical, setSendVertical] = useState('all');
+  const [templateVertical, setTemplateVertical] = useState('crm');
+  const [templateSubject, setTemplateSubject] = useState('');
+  const [templateMessage, setTemplateMessage] = useState('');
+  const [templateGuidance, setTemplateGuidance] = useState('');
+  const [templateBusy, setTemplateBusy] = useState(false);
+  const [templateStatus, setTemplateStatus] = useState('');
 
   const leadFromPath = useMemo(() => {
     const m = pathname?.match(/^\/leads\/(\d+)$/);
@@ -143,6 +159,100 @@ export default function AiAssistantPopup() {
     }
   }, [actionPage, selectedProspects.length, leadFromPath, actionName]);
 
+  async function loadTemplate(channel: 'email' | 'sms', vertical: string) {
+    setTemplateBusy(true);
+    setTemplateStatus('');
+    try {
+      const res = await fetch(`/api/outreach/templates?channel=${channel}&vertical=${vertical}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? 'Failed to load template.');
+        return;
+      }
+      setTemplateSubject((data.template?.subject ?? '').toString());
+      setTemplateMessage((data.template?.message ?? '').toString());
+    } catch {
+      setError('Failed to load template.');
+    } finally {
+      setTemplateBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (mode !== 'actions') return;
+    if (actionPage !== 'prospects') return;
+    if (actionName !== 'send_email' && actionName !== 'send_sms') return;
+    loadTemplate(actionName === 'send_email' ? 'email' : 'sms', templateVertical);
+  }, [mode, actionPage, actionName, templateVertical]);
+
+  async function regenerateTemplate() {
+    const channel = actionName === 'send_sms' ? 'sms' : 'email';
+    if (!templateGuidance.trim()) {
+      setError('Add user input before regenerating the template.');
+      return;
+    }
+
+    setTemplateBusy(true);
+    setTemplateStatus('');
+    setError('');
+    try {
+      const res = await fetch('/api/outreach/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'regenerate',
+          channel,
+          vertical: templateVertical,
+          userInput: templateGuidance,
+          subject: channel === 'email' ? templateSubject : undefined,
+          message: templateMessage,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? 'Regeneration failed.');
+        return;
+      }
+      setTemplateSubject((data.template?.subject ?? '').toString());
+      setTemplateMessage((data.template?.message ?? '').toString());
+      setTemplateStatus('Template regenerated from your guidance.');
+    } catch {
+      setError('Regeneration failed.');
+    } finally {
+      setTemplateBusy(false);
+    }
+  }
+
+  async function saveTemplate(action: 'save_vertical' | 'save_all_verticals') {
+    const channel = actionName === 'send_sms' ? 'sms' : 'email';
+    setTemplateBusy(true);
+    setTemplateStatus('');
+    setError('');
+    try {
+      const res = await fetch('/api/outreach/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          channel,
+          vertical: templateVertical,
+          subject: channel === 'email' ? templateSubject : undefined,
+          message: templateMessage,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? 'Template save failed.');
+        return;
+      }
+      setTemplateStatus(action === 'save_vertical' ? 'Saved for selected vertical.' : `Saved across all verticals (${data.updated ?? 0}).`);
+    } catch {
+      setError('Template save failed.');
+    } finally {
+      setTemplateBusy(false);
+    }
+  }
+
   async function runAssistant() {
     setLoading(true);
     setError('');
@@ -208,6 +318,7 @@ export default function AiAssistantPopup() {
             channel: actionName === 'send_email' ? 'email' : 'sms',
             scope: outreachScope,
             leadIds: outreachScope === 'selected' ? selectedProspects : undefined,
+            vertical: sendVertical === 'all' ? undefined : sendVertical,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -420,10 +531,12 @@ export default function AiAssistantPopup() {
                   <label className="block">
                     <span className="text-xs text-slate-400">Vertical</span>
                     <select value={actionValue} onChange={e => setActionValue(e.target.value)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100">
+                      <option value="crm">CRM</option>
+                      <option value="ai_automation">AI Automation</option>
+                      <option value="iot">IoT</option>
                       <option value="engineering">Engineering</option>
                       <option value="software">Software</option>
                       <option value="digital">Digital</option>
-                      <option value="industry_4_0">Industry 4.0</option>
                     </select>
                   </label>
                 )}
@@ -443,6 +556,51 @@ export default function AiAssistantPopup() {
                       <option value="lost">Lost</option>
                     </select>
                   </label>
+                )}
+
+                {(actionPage === 'prospects' && (actionName === 'send_email' || actionName === 'send_sms')) && (
+                  <div className="space-y-3 border border-slate-800 rounded-lg p-3 bg-slate-950/60">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className="text-xs text-slate-400">Send Vertical Filter</span>
+                        <select value={sendVertical} onChange={e => setSendVertical(e.target.value)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100">
+                          <option value="all">All verticals</option>
+                          {VERTICAL_OPTIONS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="text-xs text-slate-400">Template Vertical</span>
+                        <select value={templateVertical} onChange={e => setTemplateVertical(e.target.value)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100">
+                          {VERTICAL_OPTIONS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+                        </select>
+                      </label>
+                    </div>
+
+                    {actionName === 'send_email' && (
+                      <label className="block">
+                        <span className="text-xs text-slate-400">Email Subject Template</span>
+                        <input value={templateSubject} onChange={e => setTemplateSubject(e.target.value)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100" />
+                      </label>
+                    )}
+
+                    <label className="block">
+                      <span className="text-xs text-slate-400">Message Template</span>
+                      <textarea value={templateMessage} onChange={e => setTemplateMessage(e.target.value)} rows={6} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100" />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-xs text-slate-400">Regenerate Guidance</span>
+                      <textarea value={templateGuidance} onChange={e => setTemplateGuidance(e.target.value)} rows={2} placeholder="Example: Make it shorter, friendly, and focused on appointment booking." className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100" />
+                    </label>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button onClick={regenerateTemplate} disabled={templateBusy} className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded text-xs font-semibold">Regenerate</button>
+                      <button onClick={() => saveTemplate('save_vertical')} disabled={templateBusy} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:bg-emerald-300 text-white rounded text-xs font-semibold">Save Vertical</button>
+                      <button onClick={() => saveTemplate('save_all_verticals')} disabled={templateBusy} className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 disabled:bg-amber-300 text-white rounded text-xs font-semibold">Save to All Verticals</button>
+                      {templateStatus && <span className="text-[11px] text-emerald-300">{templateStatus}</span>}
+                    </div>
+                    <p className="text-[11px] text-slate-500">Templates support placeholders like {'{{company_name}}'}, {'{{location}}'}, {'{{sic_label}}'}, {'{{notes}}'}.</p>
+                  </div>
                 )}
 
                 <div className="flex items-center gap-3">

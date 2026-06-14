@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getDb } from '@/lib/db';
+import { normalizeVertical, renderOutreachTemplate, type OutreachChannel } from '@/lib/outreach-templates';
 import nodemailer from 'nodemailer';
 import twilio from 'twilio';
 
@@ -12,6 +13,7 @@ interface BulkRequestBody {
   channel?: Channel;
   scope?: Scope;
   leadIds?: number[];
+  vertical?: string;
 }
 
 function isChannel(v: string): v is Channel {
@@ -20,69 +22,6 @@ function isChannel(v: string): v is Channel {
 
 function isScope(v: string): v is Scope {
   return v === 'selected' || v === 'all' || v === 'not_sent';
-}
-
-function buildEmail(lead: { company_name: string; source: string | null; vertical: string | null; notes: string | null }) {
-  const name = lead.company_name;
-  const isAccountant = /account/i.test(lead.company_name);
-  const isNewCompany = lead.source === 'companies_house';
-  const isEngineering = lead.vertical === 'engineering';
-
-  if (isEngineering) {
-    return {
-      subject: 'Engineering Design & CAD Support - Splendid Engineering Services',
-      message:
-`Dear ${name},
-
-I hope this message finds you well.
-
-I reach out on behalf of Splendid Engineering Services, a UK-based engineering support company specialising in CAD design, CAE analysis, and technical drafting.
-
-Would you be open to a brief 15-minute call this week to discuss where we could support your team?
-
-Kind regards,
-Raja Saravanan
-Splendid Engineering Services
-raja@splendidtechnology.co.uk`,
-    };
-  }
-
-  if (isNewCompany && !isAccountant) {
-    return {
-      subject: 'Congratulations on Your New Business - Splendid Technology',
-      message:
-`Dear ${name},
-
-Congratulations on your new company.
-
-At Splendid Technology, we help new businesses launch with a strong digital foundation, including website, business email, and CRM setup.
-
-Would you be open to a free 15-minute chat this week?
-
-Kind regards,
-Raja Saravanan
-Splendid Technology
-raja@splendidtechnology.co.uk`,
-    };
-  }
-
-  const reasons = (lead.notes ?? '').split(' · ').filter(Boolean);
-  const hasNoWebsite = reasons.some(r => r.toLowerCase().includes('no website'));
-  return {
-    subject: 'Your website - quick note from Splendid Technology',
-    message: hasNoWebsite
-      ? `Hi ${name},\n\nI noticed your business does not currently have a website. We build professional mobile-friendly websites and can help you get online quickly.\n\nWould you be open to a 15-minute call this week?\n\nKind regards,\nRaja Saravanan\nSplendid Technology`
-      : `Hi ${name},\n\nI came across your website and noticed opportunities to improve conversion and lead capture.\n\nWould you be open to a 15-minute call to discuss quick wins?\n\nKind regards,\nRaja Saravanan\nSplendid Technology`,
-  };
-}
-
-function buildSMS(lead: { notes: string | null }) {
-  const reasons = (lead.notes ?? '').split(' · ').filter(Boolean);
-  const hasNoWebsite = reasons.some(r => r.toLowerCase().includes('no website'));
-  if (hasNoWebsite) {
-    return "Hi, I'm from Splendid Technology. We build professional websites from GBP50. Can we book a quick chat? splendidtechnology.co.uk";
-  }
-  return 'Hi, I spotted issues with your website costing customers. Can we book a quick call to fix them? Splendid Technology';
 }
 
 function normaliseUkNumber(input: string) {
@@ -109,6 +48,7 @@ export async function POST(req: NextRequest) {
 
   const channel = channelRaw as Channel;
   const scope = scopeRaw as Scope;
+  const verticalFilter = body.vertical ? normalizeVertical(body.vertical) : null;
   const db = getDb();
 
   if (channel === 'email' && (!process.env.SMTP_USER || !process.env.SMTP_PASS)) {
@@ -168,6 +108,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (verticalFilter) {
+    leads = leads.filter(l => normalizeVertical(l.vertical) === verticalFilter);
+  }
+
+  const templateRows = db.prepare(`
+    SELECT channel, vertical, subject, message
+    FROM outreach_templates
+    WHERE channel = ?
+  `).all(channel) as Array<{ channel: OutreachChannel; vertical: string; subject: string | null; message: string }>;
+  const templateMap = new Map(templateRows.map(t => [t.vertical, t]));
+
   const failures: Array<{ id: number; company: string; error: string }> = [];
   let skipped = 0;
   let sent = 0;
@@ -192,12 +143,21 @@ export async function POST(req: NextRequest) {
           skipped += 1;
           continue;
         }
-        const emailDraft = buildEmail(lead);
+        const vertical = normalizeVertical(lead.vertical);
+        const template = templateMap.get(vertical);
+        if (!template) {
+          failures.push({ id: lead.id, company: lead.company_name, error: `No email template for vertical ${vertical}` });
+          continue;
+        }
+        const emailDraft = renderOutreachTemplate(template, {
+          company_name: lead.company_name,
+          notes: lead.notes,
+        });
         await transporter!.sendMail({
           from: `"${process.env.SMTP_FROM_NAME ?? 'Splendid Technology'}" <${process.env.SMTP_USER}>`,
           replyTo: process.env.SMTP_REPLY_TO ?? process.env.SMTP_USER,
           to: lead.email,
-          subject: emailDraft.subject,
+          subject: emailDraft.subject ?? `Quick note for ${lead.company_name}`,
           text: emailDraft.message,
           html: emailDraft.message.replace(/\n/g, '<br>'),
         });
@@ -219,7 +179,16 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        const smsMessage = buildSMS(lead);
+        const vertical = normalizeVertical(lead.vertical);
+        const template = templateMap.get(vertical);
+        if (!template) {
+          failures.push({ id: lead.id, company: lead.company_name, error: `No SMS template for vertical ${vertical}` });
+          continue;
+        }
+        const smsMessage = renderOutreachTemplate(template, {
+          company_name: lead.company_name,
+          notes: lead.notes,
+        }).message;
         await twilioClient!.messages.create({
           from: process.env.TWILIO_FROM_NUMBER as string,
           to: normaliseUkNumber(lead.phone),
@@ -247,6 +216,7 @@ export async function POST(req: NextRequest) {
     ok: true,
     channel,
     scope,
+    vertical: verticalFilter,
     total: leads.length,
     sent,
     skipped,

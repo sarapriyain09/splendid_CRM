@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 interface User { id: number; name: string; email: string; role: string; phone?: string; created_at: string; }
 
@@ -59,7 +60,12 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl space-y-8">
-      <h1 className="text-xl font-bold text-slate-100">Settings</h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-xl font-bold text-slate-100">Settings</h1>
+        <Link href="/settings/templates" className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-lg">
+          Manage Outreach Templates
+        </Link>
+      </div>
 
       {/* Users */}
       <div className="space-y-4">

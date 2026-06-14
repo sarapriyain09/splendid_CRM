@@ -190,6 +190,8 @@ export default function LeadsPage() {
                     {(() => {
                       const v = LEAD_VERTICALS.find(v => v.key === (l.vertical ?? 'general'));
                       const cls: Record<string,string> = {
+                        amber:'bg-amber-900 text-amber-300',
+                        fuchsia:'bg-fuchsia-900 text-fuchsia-300',
                         cyan:'bg-cyan-900 text-cyan-300', blue:'bg-blue-900 text-blue-300',
                         violet:'bg-violet-900 text-violet-300', emerald:'bg-emerald-900 text-emerald-300',
                         slate:'bg-slate-800 text-slate-400',

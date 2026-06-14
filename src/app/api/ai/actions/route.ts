@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     if (action === 'move_vertical') {
       const vertical = String(body.value ?? '').trim();
-      if (!['industry_4_0', 'engineering', 'digital', 'software'].includes(vertical)) {
+      if (!['crm', 'digital', 'software', 'ai_automation', 'engineering', 'iot'].includes(vertical)) {
         return NextResponse.json({ error: 'Invalid vertical.' }, { status: 400 });
       }
       db.prepare(`UPDATE leads SET vertical = ?, updated_at = datetime('now') WHERE id IN (${clause})`).run(vertical, ...targetLeadIds);

@@ -339,10 +339,13 @@ const STAGE_COLORS: Record<string, string> = {
 };
 
 const VERTICAL_BADGE: Record<string, string> = {
-  industry_4_0: 'bg-cyan-900 text-cyan-300',
+  crm:          'bg-amber-900 text-amber-300',
+  ai_automation:'bg-fuchsia-900 text-fuchsia-300',
+  iot:          'bg-cyan-900 text-cyan-300',
   engineering:  'bg-blue-900 text-blue-300',
-  automation:   'bg-violet-900 text-violet-300',
+  automation:   'bg-fuchsia-900 text-fuchsia-300',
   software:     'bg-emerald-900 text-emerald-300',
+  digital:      'bg-violet-900 text-violet-300',
   general:      'bg-slate-800 text-slate-400',
 };
 

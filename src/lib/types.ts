@@ -19,7 +19,9 @@ export type LeadSource =
   | 'google'
   | 'other';
 export type LeadVertical =
-  | 'industry_4_0'
+  | 'crm'
+  | 'ai_automation'
+  | 'iot'
   | 'engineering'
   | 'digital'
   | 'software';
@@ -158,7 +160,9 @@ export const PIPELINE_STAGES: { key: LeadStage; label: string }[] = [
 ];
 
 export const LEAD_VERTICALS: { key: LeadVertical; label: string; color: string }[] = [
-  { key: 'industry_4_0', label: 'Industry 4.0', color: 'cyan'    },
+  { key: 'crm',          label: 'CRM',           color: 'amber'   },
+  { key: 'ai_automation',label: 'AI Automation', color: 'fuchsia' },
+  { key: 'iot',          label: 'IoT',           color: 'cyan'    },
   { key: 'engineering',  label: 'Engineering',  color: 'blue'    },
   { key: 'digital',      label: 'Digital',      color: 'violet'  },
   { key: 'software',     label: 'Software',     color: 'emerald' },

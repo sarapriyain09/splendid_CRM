@@ -11,7 +11,9 @@ import type { Lead, LeadStage } from '@/lib/types';
 import { PIPELINE_STAGES, LEAD_VERTICALS } from '@/lib/types';
 
 const VERTICAL_COLORS: Record<string, { tab: string; active: string }> = {
-  industry_4_0: { tab: 'text-cyan-400',    active: 'border-b-2 border-cyan-400 text-cyan-400'    },
+  crm:          { tab: 'text-amber-400',   active: 'border-b-2 border-amber-400 text-amber-400'   },
+  ai_automation:{ tab: 'text-fuchsia-400', active: 'border-b-2 border-fuchsia-400 text-fuchsia-400' },
+  iot:          { tab: 'text-cyan-400',    active: 'border-b-2 border-cyan-400 text-cyan-400'    },
   engineering:  { tab: 'text-blue-400',    active: 'border-b-2 border-blue-400 text-blue-400'    },
   digital:      { tab: 'text-violet-400',  active: 'border-b-2 border-violet-400 text-violet-400' },
   software:     { tab: 'text-emerald-400', active: 'border-b-2 border-emerald-400 text-emerald-400' },
