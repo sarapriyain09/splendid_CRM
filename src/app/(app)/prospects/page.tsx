@@ -393,6 +393,8 @@ export default function ProspectsPage() {
   const [selected,        setSelected]        = useState<Set<number>>(new Set());
   const [deletingIds,     setDeletingIds]     = useState<Set<number>>(new Set());
   const [deletingBulk,    setDeletingBulk]    = useState(false);
+  const [movingBulk,      setMovingBulk]      = useState(false);
+  const [bulkVertical,    setBulkVertical]    = useState<string>('engineering');
   const [callingId,       setCallingId]       = useState<number | null>(null);
   const [callError,       setCallError]       = useState<string>('');
 
@@ -466,6 +468,25 @@ export default function ProspectsPage() {
     await Promise.all([...selected].map(id => fetch(`/api/leads/${id}`, { method: 'DELETE' })));
     setSelected(new Set());
     setDeletingBulk(false);
+    fetchProspects();
+  }
+
+  async function moveSelectedVertical() {
+    if (selected.size === 0) return;
+    const label = LEAD_VERTICALS.find(v => v.key === bulkVertical)?.label ?? bulkVertical;
+    if (!confirm(`Move ${selected.size} selected prospect(s) to ${label}?`)) return;
+    setMovingBulk(true);
+    await Promise.all(
+      [...selected].map(id =>
+        fetch(`/api/leads/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vertical: bulkVertical }),
+        }),
+      ),
+    );
+    setSelected(new Set());
+    setMovingBulk(false);
     fetchProspects();
   }
 
@@ -562,6 +583,19 @@ export default function ProspectsPage() {
       {selected.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-3 bg-red-950 border border-red-800 rounded-xl">
           <span className="text-sm text-red-200 font-medium">{selected.size} selected</span>
+          <select
+            value={bulkVertical}
+            onChange={e => setBulkVertical(e.target.value)}
+            className="bg-slate-900 border border-red-800 rounded-lg px-2.5 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+          >
+            {LEAD_VERTICALS.map(v => (
+              <option key={v.key} value={v.key}>{v.label}</option>
+            ))}
+          </select>
+          <button onClick={moveSelectedVertical} disabled={movingBulk || deletingBulk}
+            className="px-4 py-1.5 bg-blue-700 hover:bg-blue-600 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-semibold rounded-lg transition-colors">
+            {movingBulk ? 'Moving…' : 'Move Vertical'}
+          </button>
           <button onClick={deleteSelected} disabled={deletingBulk}
             className="px-4 py-1.5 bg-red-700 hover:bg-red-600 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-semibold rounded-lg transition-colors">
             {deletingBulk ? 'Deleting…' : `🗑 Delete ${selected.size}`}

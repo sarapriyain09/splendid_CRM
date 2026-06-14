@@ -183,6 +183,7 @@ function PushButton({
         source:       'other',
         stage:        'prospect',
         status:       'new',
+        vertical:     'software',
         lead_score:   result.analysis?.opportunityScore ?? 0,
         notes:        result.analysis?.reasons.join(' · ') ?? null,
       }),
@@ -300,6 +301,7 @@ function V2PushButton({ result, sector, onDone }: {
         source:       'other',
         stage:        'prospect',
         status:       'new',
+        vertical:     'engineering',
         lead_score:   result.v2Score,
         notes:        result.v2Reasons.join(' · ') || null,
       }),
@@ -639,7 +641,6 @@ function CHPushButton({ result, engScore, engGrade, onDone }: {
   onDone: (num: string, state: 'done' | 'exists') => void;
 }) {
   const [state,    setState]    = useState<'idle' | 'pushing' | 'done' | 'exists'>(result.pushState);
-  const [vertical, setVertical] = useState<string>('engineering');
 
   async function push() {
     setState('pushing');
@@ -661,7 +662,7 @@ function CHPushButton({ result, engScore, engGrade, onDone }: {
         source:            'companies_house',
         stage:             'prospect',
         status:            'new',
-        vertical,
+        vertical:          'engineering',
         lead_score:        engScore,
         eng_score:         engScore,
         eng_grade:         engGrade,
@@ -683,16 +684,6 @@ function CHPushButton({ result, engScore, engGrade, onDone }: {
   if (state === 'exists') return <span className="text-xs text-amber-400 font-medium">Already exists</span>;
   return (
     <div className="flex flex-col gap-1">
-      <select
-        value={vertical}
-        onChange={e => setVertical(e.target.value)}
-        className="w-full bg-slate-800 border border-slate-700 text-[10px] text-slate-300 rounded px-1.5 py-1 focus:outline-none focus:border-emerald-500"
-      >
-        <option value="engineering">Engineering</option>
-        <option value="industry_4_0">Industry 4.0</option>
-        <option value="digital">Digital</option>
-        <option value="software">Software</option>
-      </select>
       <button onClick={push} disabled={state === 'pushing'}
         className="text-xs px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg font-medium transition-colors whitespace-nowrap">
         {state === 'pushing' ? 'Saving…' : '+ Prospect'}

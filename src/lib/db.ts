@@ -249,6 +249,13 @@ function initSchema(db: Database.Database) {
     company_name LIKE '%chartered%' OR company_name LIKE '%bookkeep%' OR
     sic_label LIKE '%account%'
   ) AND vertical NOT IN ('industry_4_0','software')`);
+  // Finder V1 backfill: older V1 prospects were saved as engineering by default.
+  // Keep V2/V3 engineering records intact by excluding V2's sector marker.
+  db.exec(`UPDATE leads
+    SET vertical = 'software'
+    WHERE source = 'other'
+      AND vertical = 'engineering'
+      AND (notes IS NULL OR notes NOT LIKE '%sector (+20)%')`);
   // ─────────────────────────────────────────────────────────────────────────
   const userCols = db.prepare(`PRAGMA table_info(users)`).all() as { name: string }[];
   const userColNames = userCols.map(c => c.name);
