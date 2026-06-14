@@ -6,6 +6,20 @@ import { usePathname } from 'next/navigation';
 import type { Lead } from '@/lib/types';
 
 type AiTask = 'crm_qa' | 'lead_summary' | 'follow_up_email' | 'pipeline_insights';
+type PopupMode = 'assistant' | 'actions';
+type ActionPage = 'prospects' | 'pipeline' | 'leads' | 'tasks';
+type ActionScope = 'single' | 'selected' | 'all' | 'not_sent' | 'open' | 'done';
+type ActionName =
+  | 'send_email'
+  | 'send_sms'
+  | 'mark_contacted'
+  | 'convert_to_lead'
+  | 'move_vertical'
+  | 'move_stage'
+  | 'delete_leads'
+  | 'mark_tasks_done'
+  | 'mark_tasks_open'
+  | 'delete_tasks';
 
 interface AiResponse {
   output?: string;
@@ -23,6 +37,7 @@ const TASK_OPTIONS: Array<{ key: AiTask; label: string }> = [
 export default function AiAssistantPopup() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<PopupMode>('assistant');
   const [task, setTask] = useState<AiTask>('crm_qa');
   const [prompt, setPrompt] = useState('Which leads should I follow up with today, and why?');
   const [leadId, setLeadId] = useState('');
@@ -32,9 +47,19 @@ export default function AiAssistantPopup() {
   const [error, setError] = useState('');
   const [result, setResult] = useState('');
   const [model, setModel] = useState('');
+  const [selectedProspects, setSelectedProspects] = useState<number[]>([]);
+  const [actionPage, setActionPage] = useState<ActionPage>('prospects');
+  const [actionName, setActionName] = useState<ActionName>('send_email');
+  const [actionScope, setActionScope] = useState<ActionScope>('selected');
+  const [actionValue, setActionValue] = useState('engineering');
 
   const leadFromPath = useMemo(() => {
     const m = pathname?.match(/^\/leads\/(\d+)$/);
+    return m ? m[1] : '';
+  }, [pathname]);
+
+  const taskFromPath = useMemo(() => {
+    const m = pathname?.match(/^\/tasks\/(\d+)$/);
     return m ? m[1] : '';
   }, [pathname]);
 
@@ -64,6 +89,59 @@ export default function AiAssistantPopup() {
       .catch(() => setLeads([]))
       .finally(() => setLoadingLeads(false));
   }, [open, requiresLead, leadFromPath, leads.length, loadingLeads]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<{ ids?: number[] }>;
+      const ids = Array.isArray(custom.detail?.ids) ? custom.detail.ids : [];
+      setSelectedProspects(ids.filter(n => Number.isFinite(n) && n > 0));
+    };
+    window.addEventListener('prospects-selection-changed', handler as EventListener);
+    return () => window.removeEventListener('prospects-selection-changed', handler as EventListener);
+  }, []);
+
+  useEffect(() => {
+    if (pathname?.startsWith('/prospects')) {
+      setActionPage('prospects');
+      setActionName('send_email');
+    } else if (pathname?.startsWith('/pipeline')) {
+      setActionPage('pipeline');
+      setActionName('move_stage');
+      setActionValue('contacted');
+    } else if (pathname?.startsWith('/tasks')) {
+      setActionPage('tasks');
+      setActionName('mark_tasks_done');
+      setActionScope('open');
+    } else if (pathname?.startsWith('/leads')) {
+      setActionPage('leads');
+      setActionName('move_stage');
+      setActionScope('single');
+      setActionValue('contacted');
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (actionPage === 'prospects') {
+      setActionScope(selectedProspects.length > 0 ? 'selected' : 'all');
+      if (!['send_email', 'send_sms', 'mark_contacted', 'convert_to_lead', 'move_vertical', 'delete_leads'].includes(actionName)) {
+        setActionName('send_email');
+      }
+      return;
+    }
+    if (actionPage === 'pipeline' || actionPage === 'leads') {
+      setActionScope(leadFromPath ? 'single' : 'all');
+      if (!['mark_contacted', 'move_stage', 'move_vertical'].includes(actionName)) {
+        setActionName('move_stage');
+      }
+      return;
+    }
+    if (actionPage === 'tasks') {
+      setActionScope('open');
+      if (!['mark_tasks_done', 'mark_tasks_open', 'delete_tasks'].includes(actionName)) {
+        setActionName('mark_tasks_done');
+      }
+    }
+  }, [actionPage, selectedProspects.length, leadFromPath, actionName]);
 
   async function runAssistant() {
     setLoading(true);
@@ -109,6 +187,67 @@ export default function AiAssistantPopup() {
     setLoading(false);
   }
 
+  async function runAction() {
+    setLoading(true);
+    setError('');
+    setResult('');
+    setModel('');
+
+    try {
+      if (actionName === 'send_email' || actionName === 'send_sms') {
+        if (actionPage !== 'prospects') {
+          setError('Email/SMS bulk outreach is available on Prospects actions.');
+          setLoading(false);
+          return;
+        }
+        const outreachScope = actionScope === 'not_sent' ? 'not_sent' : actionScope === 'all' ? 'all' : 'selected';
+        const res = await fetch('/api/prospects/bulk-outreach', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            channel: actionName === 'send_email' ? 'email' : 'sms',
+            scope: outreachScope,
+            leadIds: outreachScope === 'selected' ? selectedProspects : undefined,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError(data.error ?? 'Action failed.');
+        } else {
+          setResult(`Outreach complete. Total: ${data.total ?? 0}, Sent: ${data.sent ?? 0}, Skipped: ${data.skipped ?? 0}, Failed: ${data.failed ?? 0}.`);
+        }
+        setLoading(false);
+        return;
+      }
+
+      const ids = actionScope === 'selected' ? selectedProspects : undefined;
+      const res = await fetch('/api/ai/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          page: actionPage,
+          action: actionName,
+          scope: actionScope,
+          ids,
+          leadId: actionScope === 'single' && leadFromPath ? Number(leadFromPath) : undefined,
+          taskId: actionScope === 'single' && taskFromPath ? Number(taskFromPath) : undefined,
+          value: ['move_vertical', 'move_stage'].includes(actionName) ? actionValue : undefined,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? 'Action failed.');
+      } else {
+        setResult(`Action completed: ${actionName}. Updated records: ${data.count ?? 0}.`);
+      }
+    } catch {
+      setError('Action failed.');
+    }
+
+    setLoading(false);
+  }
+
   return (
     <>
       <button
@@ -129,6 +268,23 @@ export default function AiAssistantPopup() {
           </div>
 
           <div className="p-4 space-y-3">
+            <div className="flex gap-1 bg-slate-950 border border-slate-800 rounded-lg p-1 w-fit">
+              <button
+                onClick={() => setMode('assistant')}
+                className={`px-3 py-1.5 text-xs rounded ${mode === 'assistant' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Assistant
+              </button>
+              <button
+                onClick={() => setMode('actions')}
+                className={`px-3 py-1.5 text-xs rounded ${mode === 'actions' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Actions
+              </button>
+            </div>
+
+            {mode === 'assistant' ? (
+              <>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => { setTask('crm_qa'); setPrompt('Which leads should I follow up with today, and why?'); }} className="text-[11px] px-2.5 py-1 rounded bg-slate-800 text-slate-300 hover:text-white">Today follow-ups</button>
               <button onClick={() => { setTask('pipeline_insights'); setPrompt('Focus on stalled deals and forecast risk for this month.'); }} className="text-[11px] px-2.5 py-1 rounded bg-slate-800 text-slate-300 hover:text-white">Pipeline risks</button>
@@ -191,6 +347,112 @@ export default function AiAssistantPopup() {
               <Link href="/ai-assistant" className="text-xs text-blue-400 hover:text-blue-300">Open full assistant</Link>
               {model && <span className="text-[11px] text-slate-500">Model: {model}</span>}
             </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-xs text-slate-400">Page</span>
+                    <select value={actionPage} onChange={e => setActionPage(e.target.value as ActionPage)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100">
+                      <option value="prospects">Prospects</option>
+                      <option value="pipeline">Pipeline</option>
+                      <option value="leads">Leads</option>
+                      <option value="tasks">Tasks</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs text-slate-400">Action</span>
+                    <select value={actionName} onChange={e => setActionName(e.target.value as ActionName)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100">
+                      {actionPage === 'prospects' && (
+                        <>
+                          <option value="send_email">Send Email</option>
+                          <option value="send_sms">Send SMS</option>
+                          <option value="mark_contacted">Mark Contacted</option>
+                          <option value="convert_to_lead">Convert to Lead</option>
+                          <option value="move_vertical">Move Vertical</option>
+                          <option value="delete_leads">Delete</option>
+                        </>
+                      )}
+                      {(actionPage === 'pipeline' || actionPage === 'leads') && (
+                        <>
+                          <option value="move_stage">Move Stage</option>
+                          <option value="move_vertical">Move Vertical</option>
+                          <option value="mark_contacted">Mark Contacted</option>
+                        </>
+                      )}
+                      {actionPage === 'tasks' && (
+                        <>
+                          <option value="mark_tasks_done">Mark Done</option>
+                          <option value="mark_tasks_open">Mark Open</option>
+                          <option value="delete_tasks">Delete</option>
+                        </>
+                      )}
+                    </select>
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="text-xs text-slate-400">Scope</span>
+                  <select value={actionScope} onChange={e => setActionScope(e.target.value as ActionScope)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100">
+                    {(actionPage === 'prospects' && (actionName === 'send_email' || actionName === 'send_sms')) ? (
+                      <>
+                        <option value="selected">Selected ({selectedProspects.length})</option>
+                        <option value="all">All prospects</option>
+                        <option value="not_sent">Not sent</option>
+                      </>
+                    ) : actionPage === 'tasks' ? (
+                      <>
+                        <option value="open">Open tasks</option>
+                        <option value="done">Done tasks</option>
+                        <option value="all">All tasks</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="single">Single (current page item)</option>
+                        <option value="selected">Selected ({selectedProspects.length})</option>
+                        <option value="all">All</option>
+                      </>
+                    )}
+                  </select>
+                </label>
+
+                {actionName === 'move_vertical' && (
+                  <label className="block">
+                    <span className="text-xs text-slate-400">Vertical</span>
+                    <select value={actionValue} onChange={e => setActionValue(e.target.value)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100">
+                      <option value="engineering">Engineering</option>
+                      <option value="software">Software</option>
+                      <option value="digital">Digital</option>
+                      <option value="industry_4_0">Industry 4.0</option>
+                    </select>
+                  </label>
+                )}
+
+                {actionName === 'move_stage' && (
+                  <label className="block">
+                    <span className="text-xs text-slate-400">Stage</span>
+                    <select value={actionValue} onChange={e => setActionValue(e.target.value)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100">
+                      <option value="prospect">Prospect</option>
+                      <option value="lead">Lead</option>
+                      <option value="contacted">Contacted</option>
+                      <option value="meeting_scheduled">Meeting Scheduled</option>
+                      <option value="requirements">Requirements</option>
+                      <option value="proposal_sent">Proposal Sent</option>
+                      <option value="negotiation">Negotiation</option>
+                      <option value="won">Won</option>
+                      <option value="lost">Lost</option>
+                    </select>
+                  </label>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <button onClick={runAction} disabled={loading} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-300 text-white rounded-lg text-sm font-semibold">
+                    {loading ? 'Running...' : 'Run Action'}
+                  </button>
+                  <span className="text-[11px] text-slate-500">AI can execute single and bulk actions from here.</span>
+                </div>
+              </>
+            )}
 
             {error && <div className="text-xs text-red-300 bg-red-950/40 border border-red-800 rounded-lg p-2">{error}</div>}
 

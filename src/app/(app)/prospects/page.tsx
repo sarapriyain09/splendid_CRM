@@ -522,6 +522,10 @@ export default function ProspectsPage() {
   const contactedCount    = prospects.filter(p => !!p.contacted_at).length;
   const notContactedCount = prospects.filter(p => !p.contacted_at).length;
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('prospects-selection-changed', { detail: { ids: [...selected] } }));
+  }, [selected]);
+
   return (
     <div className="space-y-5">
       {emailTarget && (
