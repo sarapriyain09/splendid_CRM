@@ -13,6 +13,7 @@ const NAV = [
   { href: '/pipeline',        icon: '⊟', label: 'Pipeline'             },
   { href: '/quotes',          icon: '◻', label: 'Quotes'               },
   { href: '/tasks',           icon: '✓', label: 'Tasks'                },
+  { href: '/upwork',          icon: 'UW', label: 'Upwork Leads'         },
   { href: '/linkedin',        icon: 'in', label: 'LinkedIn Leads'      },
 ];
 

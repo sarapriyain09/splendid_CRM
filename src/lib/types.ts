@@ -12,6 +12,8 @@ export type LeadStage =
   | 'lost';
 export type LeadSource =
   | 'companies_house'
+  | 'upwork'
+  | 'manual'
   | 'website'
   | 'whatsapp'
   | 'linkedin'
@@ -79,6 +81,14 @@ export interface Lead {
   next_followup_date:  string | null;
   opportunity_value:   number | null;
   interest_level:      string | null;
+  // Upwork tracking fields
+  upwork_client_name:   string | null;
+  upwork_company:       string | null;
+  upwork_project_title: string | null;
+  upwork_project_url:   string | null;
+  upwork_budget:        string | null;
+  upwork_proposal_date: string | null;
+  upwork_proposal_status: string | null;
 }
 
 export interface Contact {
@@ -170,6 +180,8 @@ export const LEAD_VERTICALS: { key: LeadVertical; label: string; color: string }
 
 export const LEAD_SOURCES: { key: LeadSource; label: string }[] = [
   { key: 'companies_house', label: 'Companies House' },
+  { key: 'upwork', label: 'Upwork' },
+  { key: 'manual', label: 'Manual' },
   { key: 'website', label: 'Website' },
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'linkedin', label: 'LinkedIn' },

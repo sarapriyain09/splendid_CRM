@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
 
   const assignedTo = searchParams.get('assigned_to');
   const vertical   = searchParams.get('vertical');
+  const source     = searchParams.get('source');
 
   let sql = 'SELECT l.*, u.name as assigned_name, cu.name as created_by_name FROM leads l LEFT JOIN users u ON l.assigned_to = u.id LEFT JOIN users cu ON l.created_by = cu.id WHERE 1=1';
   const params: (string | number)[] = [];
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest) {
   if (status)     { sql += ' AND l.status = ?';      params.push(status);     }
   if (assignedTo) { sql += ' AND l.assigned_to = ?'; params.push(assignedTo); }
   if (vertical)   { sql += ' AND l.vertical = ?';    params.push(vertical);   }
+  if (source)     { sql += ' AND l.source = ?';      params.push(source);     }
   if (search) { sql += ' AND (l.company_name LIKE ? OR l.location LIKE ? OR l.email LIKE ?)'; const q = `%${search}%`; params.push(q, q, q); }
 
   sql += ' ORDER BY l.lead_score DESC, l.created_at DESC';

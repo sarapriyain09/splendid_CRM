@@ -235,6 +235,27 @@ function initSchema(db: Database.Database) {
   if (!colNames.includes('interest_level')) {
     db.exec(`ALTER TABLE leads ADD COLUMN interest_level TEXT`);
   }
+  if (!colNames.includes('upwork_client_name')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN upwork_client_name TEXT`);
+  }
+  if (!colNames.includes('upwork_company')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN upwork_company TEXT`);
+  }
+  if (!colNames.includes('upwork_project_title')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN upwork_project_title TEXT`);
+  }
+  if (!colNames.includes('upwork_project_url')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN upwork_project_url TEXT`);
+  }
+  if (!colNames.includes('upwork_budget')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN upwork_budget TEXT`);
+  }
+  if (!colNames.includes('upwork_proposal_date')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN upwork_proposal_date TEXT`);
+  }
+  if (!colNames.includes('upwork_proposal_status')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN upwork_proposal_status TEXT`);
+  }
 
   // ── Vertical normalisation migration ─────────────────────────────────────
   // legacy values → current vertical taxonomy
