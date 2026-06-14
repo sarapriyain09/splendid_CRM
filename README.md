@@ -200,6 +200,8 @@ Schema migrations are applied in app startup through `src/lib/db.ts`.
 
 Primary deployment target is Raspberry Pi 5 with PM2.
 
+The full CRM software is implemented and running on Raspberry Pi 5 infrastructure, and Cloudflare is used to route public web traffic to the CRM services.
+
 - Live CRM process: `splendid-crm`
 - Demo CRM process: `splendid-crm-demo`
 
