@@ -5,11 +5,9 @@ import type { Lead } from '@/lib/types';
 import { LEAD_VERTICALS } from '@/lib/types';
 
 const VERTICAL_COLORS: Record<string, string> = {
-  crm:          'border-b-2 border-amber-400 text-amber-400',
   ai_automation:'border-b-2 border-fuchsia-400 text-fuchsia-400',
   iot:          'border-b-2 border-cyan-400 text-cyan-400',
   engineering:  'border-b-2 border-blue-400 text-blue-400',
-  digital:      'border-b-2 border-violet-400 text-violet-400',
   software:     'border-b-2 border-emerald-400 text-emerald-400',
   all:          'border-b-2 border-white text-white',
 };
@@ -44,7 +42,7 @@ function SmsPanel({ prospect, onClose, onSent }: {
   const [notConfigured, setNotConfigured] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/outreach/templates?channel=sms&vertical=${prospect.vertical ?? 'digital'}&leadId=${prospect.id}`)
+    fetch(`/api/outreach/templates?channel=sms&vertical=${prospect.vertical ?? 'software'}&leadId=${prospect.id}`)
       .then(r => r.json())
       .then(data => {
         if (data?.preview?.message) setMessage(data.preview.message as string);
@@ -275,7 +273,7 @@ function EmailPanel({ prospect, onClose, onSent }: {
   const [scraped,  setScraped]  = useState<string[]>([]);
 
   useEffect(() => {
-    fetch(`/api/outreach/templates?channel=email&vertical=${prospect.vertical ?? 'digital'}&leadId=${prospect.id}`)
+    fetch(`/api/outreach/templates?channel=email&vertical=${prospect.vertical ?? 'software'}&leadId=${prospect.id}`)
       .then(r => r.json())
       .then(data => {
         if (data?.preview?.subject) setSubject(data.preview.subject as string);
@@ -415,7 +413,7 @@ export default function ProspectsPage() {
   const [deletingIds,     setDeletingIds]     = useState<Set<number>>(new Set());
   const [deletingBulk,    setDeletingBulk]    = useState(false);
   const [movingBulk,      setMovingBulk]      = useState(false);
-  const [bulkVertical,    setBulkVertical]    = useState<string>('engineering');
+  const [bulkVertical,    setBulkVertical]    = useState<string>('software');
   const [callingId,       setCallingId]       = useState<number | null>(null);
   const [callError,       setCallError]       = useState<string>('');
 

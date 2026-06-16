@@ -21,11 +21,9 @@ export type LeadSource =
   | 'google'
   | 'other';
 export type LeadVertical =
-  | 'crm'
-  | 'ai_automation'
-  | 'iot'
   | 'engineering'
-  | 'digital'
+  | 'iot'
+  | 'ai_automation'
   | 'software';
 export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
 
@@ -170,12 +168,10 @@ export const PIPELINE_STAGES: { key: LeadStage; label: string }[] = [
 ];
 
 export const LEAD_VERTICALS: { key: LeadVertical; label: string; color: string }[] = [
-  { key: 'crm',          label: 'CRM',           color: 'amber'   },
-  { key: 'ai_automation',label: 'AI Automation', color: 'fuchsia' },
-  { key: 'iot',          label: 'IoT',           color: 'cyan'    },
-  { key: 'engineering',  label: 'Engineering',  color: 'blue'    },
-  { key: 'digital',      label: 'Digital',      color: 'violet'  },
-  { key: 'software',     label: 'Software',     color: 'emerald' },
+  { key: 'engineering',  label: 'Engineering Services', color: 'blue'    },
+  { key: 'iot',          label: 'Industry 4.0',         color: 'cyan'    },
+  { key: 'ai_automation',label: 'Digital Twin AI',      color: 'fuchsia' },
+  { key: 'software',     label: 'Software Platforms',   color: 'emerald' },
 ];
 
 export const LEAD_SOURCES: { key: LeadSource; label: string }[] = [

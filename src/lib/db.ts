@@ -193,7 +193,7 @@ function initSchema(db: Database.Database) {
     db.exec(`ALTER TABLE leads ADD COLUMN tps_checked_at TEXT`);
   }
   if (!colNames.includes('vertical')) {
-    db.exec(`ALTER TABLE leads ADD COLUMN vertical TEXT NOT NULL DEFAULT 'general'`);
+    db.exec(`ALTER TABLE leads ADD COLUMN vertical TEXT NOT NULL DEFAULT 'software'`);
   }
   // Engineering scoring columns
   if (!colNames.includes('contact_name')) {
@@ -258,29 +258,11 @@ function initSchema(db: Database.Database) {
   }
 
   // ── Vertical normalisation migration ─────────────────────────────────────
-  // legacy values → current vertical taxonomy
+  // legacy values → current 4-vertical taxonomy
   db.exec(`UPDATE leads SET vertical = 'iot' WHERE vertical = 'industry_4_0'`);
   db.exec(`UPDATE leads SET vertical = 'ai_automation' WHERE vertical = 'automation'`);
-  // companies_house source → engineering (manufacturing prospects)
-  db.exec(`UPDATE leads SET vertical = 'engineering' WHERE source = 'companies_house' AND (vertical IS NULL OR vertical IN ('general','engineering'))`);
-  // accountant-targeted leads → digital
-  db.exec(`UPDATE leads SET vertical = 'digital' WHERE (sic_label LIKE '%account%' OR notes LIKE '%accountant%') AND vertical NOT IN ('engineering','iot','software','digital','crm','ai_automation')`);
-  // remaining general (web/website service leads) → digital
-  db.exec(`UPDATE leads SET vertical = 'digital' WHERE vertical = 'general' OR vertical IS NULL`);
-  // food / restaurant leads → digital (overrides any vertical including engineering)
-  db.exec(`UPDATE leads SET vertical = 'digital' WHERE (
-    sic_label LIKE '%restaurant%' OR sic_label LIKE '%food%' OR sic_label LIKE '%cater%' OR
-    sic_label LIKE '%takeaway%'   OR sic_label LIKE '%cafe%'  OR sic_label LIKE '%pub%'  OR
-    notes     LIKE '%restaurant%' OR notes     LIKE '%food%'  OR notes     LIKE '%cater%' OR
-    company_name LIKE '%food%'    OR company_name LIKE '%foods%' OR company_name LIKE '%chilled%' OR
-    company_name LIKE '%sausage%' OR company_name LIKE '%saladwork%'
-  )`);
-  // accountant leads → digital
-  db.exec(`UPDATE leads SET vertical = 'digital' WHERE (
-    company_name LIKE '%account%' OR company_name LIKE '%acca%' OR
-    company_name LIKE '%chartered%' OR company_name LIKE '%bookkeep%' OR
-    sic_label LIKE '%account%'
-  ) AND vertical NOT IN ('iot','software','crm','ai_automation')`);
+  db.exec(`UPDATE leads SET vertical = 'software' WHERE vertical IN ('crm','digital','general') OR vertical IS NULL`);
+  db.exec(`UPDATE leads SET vertical = 'software' WHERE vertical NOT IN ('engineering','iot','ai_automation','software')`);
   // Finder V1 backfill: older V1 prospects were saved as engineering by default.
   // Keep V2/V3 engineering records intact by excluding V2's sector marker.
   db.exec(`UPDATE leads
@@ -311,55 +293,60 @@ function initSchema(db: Database.Database) {
   }
 
   // Seed default outreach templates per vertical/channel
-  const DEFAULT_VERTICALS = ['crm', 'digital', 'software', 'ai_automation', 'engineering', 'iot'];
+  const DEFAULT_VERTICALS = ['engineering', 'iot', 'ai_automation', 'software'] as const;
+  const DEFAULT_EMAIL_BY_VERTICAL: Record<(typeof DEFAULT_VERTICALS)[number], { subject: string; message: string }> = {
+    engineering: {
+      subject: 'Engineering Services Support for {{company_name}}',
+      message: 'Hi {{company_name}},\n\nI am reaching out from Splendid Technology. We help UK businesses in four pillars:\n1) Engineering Services\n2) Industry 4.0\n3) Digital Twin AI\n4) Software Platforms\n\nFor your team, the most relevant area is Engineering Services, where we provide flexible CAD/CAE support and extra delivery capacity when needed.\n\nWould you be available for a 15-minute call this week to explore fit?\n\nKind regards,\nRaja\nSplendid Technology',
+    },
+    iot: {
+      subject: 'Industry 4.0 Support for {{company_name}}',
+      message: 'Hi {{company_name}},\n\nI am reaching out from Splendid Technology. We help UK businesses in four pillars:\n1) Engineering Services\n2) Industry 4.0\n3) Digital Twin AI\n4) Software Platforms\n\nFor your team, the most relevant area is Industry 4.0, including connected monitoring, systems integration, and operational visibility.\n\nWould you be available for a 15-minute call this week to explore fit?\n\nKind regards,\nRaja\nSplendid Technology',
+    },
+    ai_automation: {
+      subject: 'Digital Twin AI Support for {{company_name}}',
+      message: 'Hi {{company_name}},\n\nI am reaching out from Splendid Technology. We help UK businesses in four pillars:\n1) Engineering Services\n2) Industry 4.0\n3) Digital Twin AI\n4) Software Platforms\n\nFor your team, the most relevant area is Digital Twin AI, helping reduce manual work, improve forecasting, and speed decision-making.\n\nWould you be available for a 15-minute call this week to explore fit?\n\nKind regards,\nRaja\nSplendid Technology',
+    },
+    software: {
+      subject: 'Software Platforms Support for {{company_name}}',
+      message: 'Hi {{company_name}},\n\nI am reaching out from Splendid Technology. We help UK businesses in four pillars:\n1) Engineering Services\n2) Industry 4.0\n3) Digital Twin AI\n4) Software Platforms\n\nFor your team, the most relevant area is Software Platforms, including integrations, faster delivery, and quality improvements.\n\nWould you be available for a 15-minute call this week to explore fit?\n\nKind regards,\nRaja\nSplendid Technology',
+    },
+  };
+  const DEFAULT_SMS_BY_VERTICAL: Record<(typeof DEFAULT_VERTICALS)[number], string> = {
+    engineering: 'Hi {{company_name}}, we support Engineering Services, Industry 4.0, Digital Twin AI, and Software Platforms. Open to a quick 15-min call this week? - Splendid Technology',
+    iot: 'Hi {{company_name}}, we support Engineering Services, Industry 4.0, Digital Twin AI, and Software Platforms. Open to a quick 15-min call this week? - Splendid Technology',
+    ai_automation: 'Hi {{company_name}}, we support Engineering Services, Industry 4.0, Digital Twin AI, and Software Platforms. Open to a quick 15-min call this week? - Splendid Technology',
+    software: 'Hi {{company_name}}, we support Engineering Services, Industry 4.0, Digital Twin AI, and Software Platforms. Open to a quick 15-min call this week? - Splendid Technology',
+  };
   const hasTemplate = db.prepare(`SELECT 1 FROM outreach_templates WHERE channel = ? AND vertical = ?`);
-  const insertTemplate = db.prepare(`
+  const upsertTemplate = db.prepare(`
     INSERT INTO outreach_templates (channel, vertical, subject, message, updated_at)
     VALUES (@channel, @vertical, @subject, @message, datetime('now'))
+    ON CONFLICT(channel, vertical)
+    DO UPDATE SET subject = excluded.subject, message = excluded.message, updated_at = datetime('now')
   `);
+
+  // Keep existing DB templates aligned with the four-pillar AI assistant email copy.
+  const alignEmailTemplatesTx = db.transaction(() => {
+    for (const vertical of DEFAULT_VERTICALS) {
+      const email = DEFAULT_EMAIL_BY_VERTICAL[vertical];
+      upsertTemplate.run({ channel: 'email', vertical, subject: email.subject, message: email.message });
+    }
+  });
+  alignEmailTemplatesTx();
 
   for (const vertical of DEFAULT_VERTICALS) {
     const existsEmail = hasTemplate.get('email', vertical);
     if (!existsEmail) {
-      const subject = vertical === 'engineering'
-        ? 'Engineering Support for {{company_name}}'
-        : vertical === 'software'
-          ? 'Software Delivery Support for {{company_name}}'
-          : vertical === 'iot'
-            ? 'IoT Solutions for {{company_name}}'
-            : vertical === 'ai_automation'
-              ? 'AI Automation Ideas for {{company_name}}'
-              : vertical === 'crm'
-                ? 'CRM Optimisation for {{company_name}}'
-                : 'Digital Growth Support for {{company_name}}';
-      const message = vertical === 'engineering'
-        ? 'Hi {{company_name}},\n\nWe help engineering teams with CAD/CAE capacity and delivery support.\n\nWould you be open to a short 15-minute call this week?\n\nKind regards,\nRaja\nSplendid Technology'
-        : vertical === 'software'
-          ? 'Hi {{company_name}},\n\nWe support software teams with rapid delivery, integrations, and quality improvements.\n\nWould you be open to a short 15-minute call this week?\n\nKind regards,\nRaja\nSplendid Technology'
-          : vertical === 'iot'
-            ? 'Hi {{company_name}},\n\nWe help businesses deploy practical IoT solutions, from connected monitoring to dashboard integration.\n\nWould you be open to a short 15-minute call this week?\n\nKind regards,\nRaja\nSplendid Technology'
-            : vertical === 'ai_automation'
-              ? 'Hi {{company_name}},\n\nWe design AI automation workflows that reduce manual work and speed up operations.\n\nWould you be open to a short 15-minute call this week?\n\nKind regards,\nRaja\nSplendid Technology'
-              : vertical === 'crm'
-                ? 'Hi {{company_name}},\n\nWe help teams improve CRM setup, follow-up workflows, and conversion visibility.\n\nWould you be open to a short 15-minute call this week?\n\nKind regards,\nRaja\nSplendid Technology'
-                : 'Hi {{company_name}},\n\nWe help businesses improve digital presence and lead conversion through practical upgrades.\n\nWould you be open to a short 15-minute call this week?\n\nKind regards,\nRaja\nSplendid Technology';
-      insertTemplate.run({ channel: 'email', vertical, subject, message });
+      const subject = DEFAULT_EMAIL_BY_VERTICAL[vertical].subject;
+      const message = DEFAULT_EMAIL_BY_VERTICAL[vertical].message;
+      upsertTemplate.run({ channel: 'email', vertical, subject, message });
     }
 
     const existsSms = hasTemplate.get('sms', vertical);
     if (!existsSms) {
-      const message = vertical === 'engineering'
-        ? 'Hi {{company_name}}, we provide flexible engineering CAD/CAE support. Open to a quick 15-min call this week? - Splendid Technology'
-        : vertical === 'software'
-          ? 'Hi {{company_name}}, we help software teams deliver faster with less rework. Open to a quick 15-min call this week? - Splendid Technology'
-          : vertical === 'iot'
-            ? 'Hi {{company_name}}, we build IoT solutions for monitoring and operations. Open to a quick 15-min call this week? - Splendid Technology'
-            : vertical === 'ai_automation'
-              ? 'Hi {{company_name}}, we build AI automation workflows to save time and cost. Open to a quick 15-min call this week? - Splendid Technology'
-              : vertical === 'crm'
-                ? 'Hi {{company_name}}, we improve CRM workflows and conversion tracking. Open to a quick 15-min call this week? - Splendid Technology'
-                : 'Hi {{company_name}}, we help improve digital growth and conversion. Open to a quick 15-min call this week? - Splendid Technology';
-      insertTemplate.run({ channel: 'sms', vertical, subject: null, message });
+      const message = DEFAULT_SMS_BY_VERTICAL[vertical];
+      upsertTemplate.run({ channel: 'sms', vertical, subject: null, message });
     }
   }
 }

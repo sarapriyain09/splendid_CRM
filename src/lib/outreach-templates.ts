@@ -1,6 +1,6 @@
 export type OutreachChannel = 'email' | 'sms';
 
-export const OUTREACH_VERTICALS = ['crm', 'digital', 'software', 'ai_automation', 'engineering', 'iot'] as const;
+export const OUTREACH_VERTICALS = ['engineering', 'iot', 'ai_automation', 'software'] as const;
 export type OutreachVertical = (typeof OUTREACH_VERTICALS)[number];
 
 export interface LeadTemplateContext {
@@ -22,7 +22,7 @@ export function normalizeVertical(vertical: string | null | undefined): Outreach
   if (OUTREACH_VERTICALS.includes(value as OutreachVertical)) {
     return value as OutreachVertical;
   }
-  return 'digital';
+  return 'software';
 }
 
 export function renderTemplate(text: string, context: LeadTemplateContext): string {

@@ -14,12 +14,10 @@ interface TemplateRow {
 }
 
 const VERTICALS = [
-  { key: 'crm', label: 'CRM' },
-  { key: 'digital', label: 'Digital' },
-  { key: 'software', label: 'Software' },
-  { key: 'ai_automation', label: 'AI Automation' },
-  { key: 'engineering', label: 'Engineering' },
-  { key: 'iot', label: 'IoT' },
+  { key: 'engineering', label: 'Engineering Services' },
+  { key: 'iot', label: 'Industry 4.0' },
+  { key: 'ai_automation', label: 'Digital Twin AI' },
+  { key: 'software', label: 'Software Platforms' },
 ];
 
 export default function SettingsTemplatesPage() {

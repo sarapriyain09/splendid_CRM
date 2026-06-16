@@ -28,12 +28,10 @@ interface AiResponse {
 }
 
 const VERTICAL_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 'crm', label: 'CRM' },
-  { key: 'digital', label: 'Digital' },
-  { key: 'software', label: 'Software' },
-  { key: 'ai_automation', label: 'AI Automation' },
-  { key: 'engineering', label: 'Engineering' },
-  { key: 'iot', label: 'IoT' },
+  { key: 'engineering', label: 'Engineering Services' },
+  { key: 'iot', label: 'Industry 4.0' },
+  { key: 'ai_automation', label: 'Digital Twin AI' },
+  { key: 'software', label: 'Software Platforms' },
 ];
 
 const TASK_OPTIONS: Array<{ key: AiTask; label: string }> = [
@@ -60,9 +58,9 @@ export default function AiAssistantPopup() {
   const [actionPage, setActionPage] = useState<ActionPage>('prospects');
   const [actionName, setActionName] = useState<ActionName>('send_email');
   const [actionScope, setActionScope] = useState<ActionScope>('selected');
-  const [actionValue, setActionValue] = useState('crm');
+  const [actionValue, setActionValue] = useState('software');
   const [sendVertical, setSendVertical] = useState('all');
-  const [templateVertical, setTemplateVertical] = useState('crm');
+  const [templateVertical, setTemplateVertical] = useState('software');
   const [templateSubject, setTemplateSubject] = useState('');
   const [templateMessage, setTemplateMessage] = useState('');
   const [templateGuidance, setTemplateGuidance] = useState('');
@@ -531,12 +529,7 @@ export default function AiAssistantPopup() {
                   <label className="block">
                     <span className="text-xs text-slate-400">Vertical</span>
                     <select value={actionValue} onChange={e => setActionValue(e.target.value)} className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100">
-                      <option value="crm">CRM</option>
-                      <option value="ai_automation">AI Automation</option>
-                      <option value="iot">IoT</option>
-                      <option value="engineering">Engineering</option>
-                      <option value="software">Software</option>
-                      <option value="digital">Digital</option>
+                      {VERTICAL_OPTIONS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
                     </select>
                   </label>
                 )}
