@@ -17,7 +17,6 @@ interface ImportBody {
 }
 
 const ALLOWED_STATUSES = ['upwork_prospect', 'proposal_sent', 'interview', 'opportunity', 'won', 'lost'];
-const ALLOWED_VERTICALS = ['engineering', 'iot', 'ai_automation', 'software'];
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -44,9 +43,6 @@ export async function POST(req: NextRequest) {
 
   const companyName = (body.company ?? body.clientName ?? projectTitle).trim();
   const vertical = (body.vertical ?? 'software').trim();
-  if (!ALLOWED_VERTICALS.includes(vertical)) {
-    return NextResponse.json({ error: 'Invalid vertical.' }, { status: 400 });
-  }
   const leadNotes = [
     body.notes?.trim(),
     `Upwork proposal status: ${proposalStatus}`,

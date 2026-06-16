@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     notes:               body.notes               ?? null,
     assigned_to:         body.assigned_to         ?? (session.user as any)?.id ?? null,
     created_by:          (session.user as any)?.id ?? null,
-    vertical:            body.vertical            ?? 'software',
+    vertical:            body.vertical            ?? 'crm',
     contact_name:        body.contact_name        ?? null,
     linkedin_url:        body.linkedin_url        ?? null,
     eng_score:           body.eng_score           ?? null,
