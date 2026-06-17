@@ -3,8 +3,8 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 
 interface TaskWithLead {
-  id: number; lead_id: number; title: string; due_date: string | null;
-  done: number; created_at: string; company_name: string;
+  id: number; lead_id: number | null; title: string; due_date: string | null;
+  done: number; created_at: string; company_name: string | null;
 }
 
 export default function TasksPage() {
@@ -64,9 +64,13 @@ export default function TasksPage() {
             </button>
             <div className="flex-1 min-w-0">
               <span className={`text-sm ${t.done ? 'line-through text-slate-500' : 'text-slate-200'}`}>{t.title}</span>
-              <Link href={`/leads/${t.lead_id}`} className="ml-2 text-xs text-blue-400 hover:text-blue-300">
-                {t.company_name}
-              </Link>
+              {t.lead_id ? (
+                <Link href={`/leads/${t.lead_id}`} className="ml-2 text-xs text-blue-400 hover:text-blue-300">
+                  {t.company_name ?? 'Linked lead'}
+                </Link>
+              ) : (
+                <span className="ml-2 text-xs text-slate-500">Campaign task</span>
+              )}
             </div>
             {t.due_date && (
               <span className={`text-xs flex-shrink-0 ${overdue(t) ? 'text-red-400 font-medium' : 'text-slate-500'}`}>
