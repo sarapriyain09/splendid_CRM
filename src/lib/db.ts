@@ -248,6 +248,13 @@ function initSchema(db: Database.Database) {
       week_start  TEXT    NOT NULL UNIQUE,
       created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS morning_brief_mail_runs (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      brief_date  TEXT    NOT NULL UNIQUE,
+      sent_to     TEXT    NOT NULL,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrations — safe to run on existing DBs

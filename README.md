@@ -177,6 +177,7 @@ CRM_DB_FILE=splendid-crm-demo.db
 
 ```bash
 AUTOMATION_API_KEY=your_strong_random_secret
+MORNING_BRIEF_TO=you@example.com,ops@example.com
 ```
 
 ## Data Model Notes
@@ -198,6 +199,7 @@ Schema migrations are applied in app startup through `src/lib/db.ts`.
 - AI: `/api/ai`, `/api/ai/actions`
 - Marketing Automation MVP:
 	- `/api/automation/weekly-playbook` (secured scheduler endpoint for weekly playbook creation)
+	- `/api/automation/morning-brief-email` (secured scheduler endpoint for daily email brief)
 	- `/api/contacts` (contact records with campaign/status metadata)
 	- `/api/companies` (company-level source and enrichment records)
 	- `/api/campaigns` (campaign create/list + conversion counters)
@@ -229,6 +231,12 @@ Example cron (every Monday at 07:00):
 
 ```bash
 0 7 * * 1 APP_URL=http://127.0.0.1:3002 AUTOMATION_API_KEY=your_strong_random_secret /home/sarapriyain/Projects/CRM/splendid_CRM_git/scripts/trigger-weekly-playbook.sh >> /home/sarapriyain/weekly-playbook.log 2>&1
+```
+
+Morning brief email (Mon-Fri at 07:15):
+
+```bash
+15 7 * * 1-5 APP_URL=http://127.0.0.1:3002 AUTOMATION_API_KEY=your_strong_random_secret /home/sarapriyain/Projects/CRM/splendid_CRM_git/scripts/trigger-morning-brief-email.sh >> /home/sarapriyain/morning-brief-email.log 2>&1
 ```
 
 ### Option B: n8n
