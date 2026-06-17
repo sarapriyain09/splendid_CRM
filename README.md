@@ -201,6 +201,7 @@ Schema migrations are applied in app startup through `src/lib/db.ts`.
 	- `/api/automation/weekly-playbook` (secured scheduler endpoint for weekly playbook creation)
 	- `/api/automation/morning-brief-email` (secured scheduler endpoint for daily email brief)
 	- `/api/automation/linkedin-campaign` (secured endpoint to source UK automation/engineering targets and create CRM LinkedIn outreach tasks)
+	- `/api/automation/facebook-web-campaign` (secured endpoint to create a 90-day Facebook-only web/ecommerce/hosting organic content queue)
 	- `/api/contacts` (contact records with campaign/status metadata)
 	- `/api/companies` (company-level source and enrichment records)
 	- `/api/campaigns` (campaign create/list + conversion counters)
@@ -244,6 +245,12 @@ LinkedIn campaign queue build (Mon-Fri at 06:45, 150 target companies):
 
 ```bash
 45 6 * * 1-5 APP_URL=http://127.0.0.1:3002 AUTOMATION_API_KEY=your_strong_random_secret TARGET_COUNT=150 /home/sarapriyain/Projects/CRM/splendid_CRM_git/scripts/trigger-linkedin-campaign.sh >> /home/sarapriyain/linkedin-campaign.log 2>&1
+```
+
+Facebook web campaign queue build (one-shot or periodic refresh):
+
+```bash
+APP_URL=http://127.0.0.1:3002 AUTOMATION_API_KEY=your_strong_random_secret DURATION_DAYS=90 /home/sarapriyain/Projects/CRM/splendid_CRM_git/scripts/trigger-facebook-web-campaign.sh
 ```
 
 Note: personal-profile LinkedIn connection requests/messages are not sent by API here; this automation prepares targets and follow-up workflow in CRM for compliant manual sending.
