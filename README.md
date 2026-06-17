@@ -300,6 +300,173 @@ pm2 status
 
 ## Roadmap Candidates
 
+## AI Business Development Department Blueprint
+
+The goal is to run 70-90% of routine BD work through automation while keeping human control for strategy, qualification nuance, and closing.
+
+### Operating model
+
+Treat AI as a team of agents, not one feature:
+
+- Research Assistant: discovers companies and contacts
+- SDR Assistant: runs outreach sequences and follow-up logic
+- CRM Administrator: updates statuses, activities, and reminders
+- Content Writer: drafts social/email content
+- Proposal Writer: drafts scope, pricing, and proposal packs
+- Human owner: handles negotiation and closing
+
+### What can be automated now
+
+- Prospect research and enrichment: yes
+- Decision-maker discovery: yes, with external data sources
+- Personalized outreach drafts: yes
+- Follow-up reminders and task creation: yes
+- Lead scoring and prioritization: yes
+- CRM updates and dashboarding: yes
+- Meeting scheduling handoff: yes
+- Negotiation: partial
+- Final close: human-led
+
+### Target outreach workflow
+
+```text
+Lead
+-> Contacted
+-> Connected
+-> Replied
+-> Qualified
+-> Meeting Booked
+```
+
+## Agent Design for This Codebase
+
+### 1) Research Agent (daily)
+
+Objective:
+
+- Find UK manufacturing companies
+- Identify Engineering Managers, Operations Directors, Managing Directors
+- Create company/contact records in CRM
+
+Implementation mapping:
+
+- Intake and source records via `/api/companies`
+- Contact persistence via `/api/contacts`
+- Prospect enrichment helpers in `src/lib/companies-house.ts`, `src/lib/website-checker.ts`, `src/lib/email-guesser.ts`
+
+### 2) Outreach Agent
+
+Objective:
+
+- Build/send email sequence
+- Draft LinkedIn message variants
+- Auto-create follow-up tasks
+- Advance stage/status based on response signals
+
+Implementation mapping:
+
+- Campaign orchestration via `/api/campaigns`, `/api/activities`, `/api/analytics`
+- AI content generation via `/api/ai/bd-generate`
+- Task scheduling via `/api/tasks`
+- Outreach delivery helpers via `/api/prospects/send-email`, `/api/prospects/bulk-outreach`
+
+### 3) Content Agent
+
+Objective:
+
+- Draft LinkedIn posts, technical posts, case studies, newsletters
+
+Implementation mapping:
+
+- Content queue via `/api/content-posts`
+- AI drafting via `/api/ai/bd-generate`
+- Weekly planning via `/api/campaigns/playbook`
+
+### 4) CRM Agent (morning summary)
+
+Objective:
+
+- Generate a daily operator brief:
+	- new leads found
+	- contacts attempted
+	- replies received
+	- meetings booked
+	- follow-ups due today
+
+Implementation mapping:
+
+- Daily summary endpoint: `/api/morning-brief`
+- Scheduled email brief: `/api/automation/morning-brief-email`
+- KPI rollups: `/api/analytics`, `/api/stats`
+
+### 5) Proposal Agent
+
+Objective:
+
+- Prepare proposal draft, scope, cost estimate, and meeting recap when lead is qualified
+
+Implementation mapping:
+
+- AI draft generation via `/api/ai/bd-generate`
+- Quote objects via `/api/quotes`
+- Lead/Task linkage via `/api/leads`, `/api/tasks`
+
+## Execution Plan
+
+### Phase 1 (next 30 days)
+
+Ship these as production-grade workflows:
+
+1. Contacts module hardening and enrichment automation
+2. Companies module pipeline for source -> enrichment -> qualification
+3. Pipeline stage rigor and activity logging
+4. AI email generator templates per vertical
+5. LinkedIn post generator with weekly queue
+
+Acceptance metrics:
+
+- 20+ fresh prospects/day available in queue
+- 100% follow-ups have a task owner and due date
+- Time-to-first-outreach under 24h for new qualified records
+
+### Phase 2
+
+Add operational agents:
+
+- Research Agent
+- Follow-up Agent
+- Proposal Agent
+
+Acceptance metrics:
+
+- 70%+ routine CRM updates fully automated
+- 30-50% reduction in manual admin time
+- measurable uplift in reply and meeting-booked rates
+
+### Phase 3
+
+Run autonomous morning operation:
+
+Expected daily output:
+
+"Here are 20 new prospects, 6 follow-ups due, 3 replies received, and 1 proposal ready to send."
+
+Production model:
+
+- Scheduler: cron or n8n
+- Orchestration endpoints: `/api/automation/*`
+- Human in loop for negotiation and close
+
+### Cost model reference
+
+- UK Business Development Manager: approximately GBP 3,000-5,000 per month
+- AI/API stack: approximately GBP 50-200 per month
+- Optional VA support: approximately GBP 300-500 per month
+
+This supports a lean, scalable GTM system where AI performs repeatable process work and leadership focuses on high-leverage conversations.
+
+## Additional Roadmap Candidates
+
 - Upwork one-click proposal drafting from job URL context
 - Communication timeline unification across channels
 - Template version history and rollback
