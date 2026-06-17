@@ -10,6 +10,7 @@ const NAV = [
   { href: '/prospect-finder', icon: '⊙', label: 'Prospect Finder'     },
   { href: '/prospects',       icon: '◈', label: 'Prospects'            },
   { href: '/leads',           icon: '◎', label: 'Leads'                },
+  { href: '/campaigns',       icon: '♜', label: 'Campaigns'            },
   { href: '/pipeline',        icon: '⊟', label: 'Pipeline'             },
   { href: '/quotes',          icon: '◻', label: 'Quotes'               },
   { href: '/tasks',           icon: '✓', label: 'Tasks'                },

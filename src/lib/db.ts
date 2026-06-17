@@ -34,6 +34,7 @@ function initSchema(db: Database.Database) {
 
     CREATE TABLE IF NOT EXISTS leads (
       id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id      INTEGER REFERENCES companies(id) ON DELETE SET NULL,
       company_name    TEXT    NOT NULL,
       company_number  TEXT,
       sic_code        TEXT,
@@ -54,6 +55,24 @@ function initSchema(db: Database.Database) {
       updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS companies (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      name            TEXT    NOT NULL,
+      website         TEXT,
+      industry        TEXT,
+      country         TEXT,
+      source          TEXT    NOT NULL DEFAULT 'manual',
+      employee_count  INTEGER,
+      status          TEXT    NOT NULL DEFAULT 'prospect',
+      notes           TEXT,
+      created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at      TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(name, country)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name);
+    CREATE INDEX IF NOT EXISTS idx_companies_status ON companies(status);
+
     CREATE TABLE IF NOT EXISTS contacts (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       lead_id    INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -62,9 +81,66 @@ function initSchema(db: Database.Database) {
       email      TEXT,
       phone      TEXT,
       linkedin   TEXT,
+      company    TEXT,
+      job_title  TEXT,
+      linkedin_url TEXT,
+      industry   TEXT,
+      country    TEXT,
+      status     TEXT    NOT NULL DEFAULT 'Pending',
+      lead_score INTEGER NOT NULL DEFAULT 0,
+      campaign_id INTEGER REFERENCES campaigns(id) ON DELETE SET NULL,
       is_primary INTEGER NOT NULL DEFAULT 0,
       created_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_name    TEXT    NOT NULL,
+      target_industry  TEXT,
+      start_date       TEXT,
+      end_date         TEXT,
+      duration_days    INTEGER,
+      focus_service    TEXT,
+      services_json    TEXT,
+      objective        TEXT,
+      status           TEXT    NOT NULL DEFAULT 'draft',
+      created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS activities (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id    INTEGER REFERENCES contacts(id) ON DELETE CASCADE,
+      lead_id       INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+      campaign_id   INTEGER REFERENCES campaigns(id) ON DELETE SET NULL,
+      activity_type TEXT    NOT NULL,
+      date          TEXT    NOT NULL DEFAULT (datetime('now')),
+      notes         TEXT,
+      metadata_json TEXT,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS content_posts (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      title         TEXT    NOT NULL,
+      post_content  TEXT    NOT NULL,
+      platform      TEXT    NOT NULL,
+      content_type  TEXT    NOT NULL DEFAULT 'post',
+      status        TEXT    NOT NULL DEFAULT 'draft',
+      campaign_id   INTEGER REFERENCES campaigns(id) ON DELETE SET NULL,
+      scheduled_for TEXT,
+      published_at  TEXT,
+      created_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
+    CREATE INDEX IF NOT EXISTS idx_activities_contact_id ON activities(contact_id);
+    CREATE INDEX IF NOT EXISTS idx_activities_campaign_id ON activities(campaign_id);
+    CREATE INDEX IF NOT EXISTS idx_activities_type ON activities(activity_type);
+    CREATE INDEX IF NOT EXISTS idx_content_posts_platform ON content_posts(platform);
+    CREATE INDEX IF NOT EXISTS idx_content_posts_status ON content_posts(status);
 
     CREATE TABLE IF NOT EXISTS notes (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -173,6 +249,9 @@ function initSchema(db: Database.Database) {
   const colNames = cols.map(c => c.name);
   if (!colNames.includes('contacted_at')) {
     db.exec(`ALTER TABLE leads ADD COLUMN contacted_at TEXT`);
+  }
+  if (!colNames.includes('company_id')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL`);
   }
   if (!colNames.includes('outreach_email')) {
     db.exec(`ALTER TABLE leads ADD COLUMN outreach_email TEXT`);
@@ -308,6 +387,45 @@ function initSchema(db: Database.Database) {
   const demoRegColNames = demoRegCols.map(c => c.name);
   if (demoRegCols.length > 0 && !demoRegColNames.includes('verification_sent')) {
     db.exec(`ALTER TABLE demo_registrations ADD COLUMN verification_sent INTEGER NOT NULL DEFAULT 0`);
+  }
+
+  const contactCols = db.prepare(`PRAGMA table_info(contacts)`).all() as { name: string }[];
+  const contactColNames = contactCols.map(c => c.name);
+  if (!contactColNames.includes('company')) {
+    db.exec(`ALTER TABLE contacts ADD COLUMN company TEXT`);
+  }
+  if (!contactColNames.includes('job_title')) {
+    db.exec(`ALTER TABLE contacts ADD COLUMN job_title TEXT`);
+  }
+  if (!contactColNames.includes('linkedin_url')) {
+    db.exec(`ALTER TABLE contacts ADD COLUMN linkedin_url TEXT`);
+  }
+  if (!contactColNames.includes('industry')) {
+    db.exec(`ALTER TABLE contacts ADD COLUMN industry TEXT`);
+  }
+  if (!contactColNames.includes('country')) {
+    db.exec(`ALTER TABLE contacts ADD COLUMN country TEXT`);
+  }
+  if (!contactColNames.includes('status')) {
+    db.exec(`ALTER TABLE contacts ADD COLUMN status TEXT NOT NULL DEFAULT 'Pending'`);
+  }
+  if (!contactColNames.includes('lead_score')) {
+    db.exec(`ALTER TABLE contacts ADD COLUMN lead_score INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!contactColNames.includes('campaign_id')) {
+    db.exec(`ALTER TABLE contacts ADD COLUMN campaign_id INTEGER REFERENCES campaigns(id) ON DELETE SET NULL`);
+  }
+
+  const campaignCols = db.prepare(`PRAGMA table_info(campaigns)`).all() as { name: string }[];
+  const campaignColNames = campaignCols.map(c => c.name);
+  if (campaignCols.length > 0 && !campaignColNames.includes('duration_days')) {
+    db.exec(`ALTER TABLE campaigns ADD COLUMN duration_days INTEGER`);
+  }
+  if (campaignCols.length > 0 && !campaignColNames.includes('focus_service')) {
+    db.exec(`ALTER TABLE campaigns ADD COLUMN focus_service TEXT`);
+  }
+  if (campaignCols.length > 0 && !campaignColNames.includes('services_json')) {
+    db.exec(`ALTER TABLE campaigns ADD COLUMN services_json TEXT`);
   }
 
   // Seed default outreach templates per vertical/channel

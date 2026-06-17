@@ -190,6 +190,16 @@ Schema migrations are applied in app startup through `src/lib/db.ts`.
 
 - Core CRM: `/api/leads`, `/api/tasks`, `/api/quotes`, `/api/stats`
 - AI: `/api/ai`, `/api/ai/actions`
+- Marketing Automation MVP:
+	- `/api/contacts` (contact records with campaign/status metadata)
+	- `/api/companies` (company-level source and enrichment records)
+	- `/api/campaigns` (campaign create/list + conversion counters)
+	- `/api/activities` (LinkedIn and outreach activity timeline)
+	- `/api/content-posts` (AI content draft/schedule queue)
+	- `/api/analytics` (acceptance/reply/meeting conversion metrics)
+	- `/api/morning-brief` (daily BD summary and priority follow-ups)
+	- `/api/ai/bd-generate` (AI email sequence, LinkedIn posts, proposal draft)
+	- `/api/campaigns/playbook` (FW24 daily/weekly campaign activities + one-click weekly task generation)
 - Outreach templates: `/api/outreach/templates`
 - Prospecting: `/api/ch/*`, `/api/prospect-finder/*`
 - Outreach execution: `/api/prospects/send-email`, `/api/prospects/send-sms`, `/api/prospects/bulk-outreach`

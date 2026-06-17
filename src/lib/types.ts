@@ -39,6 +39,7 @@ export interface User {
 
 export interface Lead {
   id: number;
+  company_id: number | null;
   company_name: string;
   company_number: string | null;
   sic_code: string | null;
@@ -91,6 +92,20 @@ export interface Lead {
   upwork_proposal_status: string | null;
 }
 
+export interface Company {
+  id: number;
+  name: string;
+  website: string | null;
+  industry: string | null;
+  country: string | null;
+  source: string;
+  employee_count: number | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Contact {
   id: number;
   lead_id: number;
@@ -99,8 +114,58 @@ export interface Contact {
   email: string | null;
   phone: string | null;
   linkedin: string | null;
+  company: string | null;
+  job_title: string | null;
+  linkedin_url: string | null;
+  industry: string | null;
+  country: string | null;
+  status: string;
+  lead_score: number;
+  campaign_id: number | null;
   is_primary: boolean | number;
   created_at: string;
+}
+
+export interface Campaign {
+  id: number;
+  campaign_name: string;
+  target_industry: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  duration_days: number | null;
+  focus_service: string | null;
+  services_json: string | null;
+  objective: string | null;
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Activity {
+  id: number;
+  contact_id: number | null;
+  lead_id: number | null;
+  campaign_id: number | null;
+  activity_type: string;
+  date: string;
+  notes: string | null;
+  metadata_json: string | null;
+  created_at: string;
+}
+
+export interface ContentPost {
+  id: number;
+  title: string;
+  post_content: string;
+  platform: 'linkedin' | 'facebook' | 'instagram' | 'x' | 'blog' | 'email';
+  content_type: 'post' | 'blog' | 'email';
+  status: 'draft' | 'scheduled' | 'published' | 'archived';
+  campaign_id: number | null;
+  scheduled_for: string | null;
+  published_at: string | null;
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Note {
