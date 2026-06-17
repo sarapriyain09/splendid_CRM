@@ -21,6 +21,12 @@ function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function addDaysIso(startDate: string, days: number): string {
+  const date = new Date(`${startDate}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export function buildWeeklyTaskPlan(startDate: string = new Date().toISOString().slice(0, 10)) {
   const start = new Date(`${startDate}T00:00:00`);
 
