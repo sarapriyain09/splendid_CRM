@@ -21,11 +21,22 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const done = searchParams.get('done');
+  const category = searchParams.get('category');
   const db = getDb();
 
   let sql = `SELECT t.*, l.company_name FROM tasks t LEFT JOIN leads l ON t.lead_id = l.id`;
   const params: unknown[] = [];
-  if (done !== null) { sql += ` WHERE t.done = ?`; params.push(Number(done)); }
+  const whereParts: string[] = [];
+  if (done !== null) {
+    whereParts.push('t.done = ?');
+    params.push(Number(done));
+  }
+  if (category === 'campaign') {
+    whereParts.push("t.title LIKE '[CRM 90-Day] %'");
+  }
+  if (whereParts.length > 0) {
+    sql += ` WHERE ${whereParts.join(' AND ')}`;
+  }
   sql += ` ORDER BY t.done ASC, t.due_date ASC, t.created_at DESC`;
 
   const tasks = db.prepare(sql).all(...params);

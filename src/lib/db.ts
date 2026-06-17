@@ -242,6 +242,12 @@ function initSchema(db: Database.Database) {
       updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
       UNIQUE(channel, vertical)
     );
+
+    CREATE TABLE IF NOT EXISTS campaign_playbook_runs (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      week_start  TEXT    NOT NULL UNIQUE,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrations — safe to run on existing DBs

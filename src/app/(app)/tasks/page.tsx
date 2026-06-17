@@ -9,10 +9,13 @@ interface TaskWithLead {
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<TaskWithLead[]>([]);
-  const [filter, setFilter] = useState<'all'|'open'|'done'>('open');
+  const [filter, setFilter] = useState<'all'|'open'|'done'|'campaign'>('open');
 
   const load = useCallback(async () => {
-    const url = filter === 'all' ? '/api/tasks' : `/api/tasks?done=${filter === 'done' ? 1 : 0}`;
+    let url = '/api/tasks';
+    if (filter === 'open') url = '/api/tasks?done=0';
+    if (filter === 'done') url = '/api/tasks?done=1';
+    if (filter === 'campaign') url = '/api/tasks?category=campaign';
     const res = await fetch(url);
     if (res.ok) setTasks(await res.json());
   }, [filter]);
@@ -35,12 +38,12 @@ export default function TasksPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-slate-100">Tasks</h1>
         <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1">
-          {(['open','all','done'] as const).map(f => (
+          {(['open','campaign','all','done'] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded text-xs font-medium capitalize transition-colors ${
                 filter === f ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'
               }`}>
-              {f}
+              {f === 'campaign' ? 'Campaign Tasks' : f}
             </button>
           ))}
         </div>

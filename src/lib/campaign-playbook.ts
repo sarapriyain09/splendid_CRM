@@ -1,3 +1,5 @@
+import type Database from 'better-sqlite3';
+
 export const CRM_DAILY_ACTIVITIES: string[] = [
   '5 LinkedIn connections',
   '2 Follow-up messages',
@@ -49,4 +51,61 @@ export function buildWeeklyTaskPlan(startDate: string = new Date().toISOString()
   }
 
   return plan;
+}
+
+export function getMondayIsoDate(date: Date = new Date()): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+export function ensureWeeklyPlaybookTasks(
+  db: Database.Database,
+  options: { userId?: number | null; now?: Date; force?: boolean } = {}
+) {
+  const now = options.now ?? new Date();
+  const userId = options.userId ?? null;
+  const weekStart = getMondayIsoDate(now);
+  const force = options.force ?? false;
+
+  const existingRun = db
+    .prepare('SELECT id FROM campaign_playbook_runs WHERE week_start = ?')
+    .get(weekStart) as { id: number } | undefined;
+
+  if (existingRun && !force) {
+    return { created: 0, weekStart, weekEnd: addDaysIso(weekStart, 6), skipped: true };
+  }
+
+  if (existingRun && force) {
+    db.prepare('DELETE FROM campaign_playbook_runs WHERE id = ?').run(existingRun.id);
+  }
+
+  const plan = buildWeeklyTaskPlan(weekStart);
+  const insertTask = db.prepare(`
+    INSERT INTO tasks (lead_id, user_id, title, due_date)
+    VALUES (?, ?, ?, ?)
+  `);
+
+  const insertRun = db.prepare(`
+    INSERT INTO campaign_playbook_runs (week_start, created_at)
+    VALUES (?, datetime('now'))
+  `);
+
+  const tx = db.transaction(() => {
+    for (const item of plan) {
+      insertTask.run(null, userId, item.title, item.due_date);
+    }
+    insertRun.run(weekStart);
+  });
+
+  tx();
+
+  return {
+    created: plan.length,
+    weekStart,
+    weekEnd: addDaysIso(weekStart, 6),
+    skipped: false,
+  };
 }

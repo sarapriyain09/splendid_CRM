@@ -9,6 +9,12 @@ interface Stats {
   openQuotes: number; quoteValue: number;
   recentLeads: Lead[];
   stageCount: { stage: string; c: number }[];
+  campaignKpi?: {
+    tasksToday: number;
+    tasksWeek: number;
+    tasksOpen: number;
+    autoCreatedThisRequest: number;
+  };
 }
 
 // Funnel stages in order (excluding 'lost' from the main funnel)
@@ -69,6 +75,33 @@ export default function DashboardPage() {
             <div className="text-xs text-slate-500 mt-1">{c.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Campaign KPI card */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="text-sm font-semibold text-slate-300">CRM Campaign KPI</h2>
+          <Link href="/tasks" className="text-xs text-blue-400 hover:text-blue-300">View tasks →</Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+            <div className="text-xs text-slate-400">Today</div>
+            <div className="text-2xl font-bold text-cyan-400">{stats.campaignKpi?.tasksToday ?? 0}</div>
+          </div>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+            <div className="text-xs text-slate-400">This Week</div>
+            <div className="text-2xl font-bold text-amber-400">{stats.campaignKpi?.tasksWeek ?? 0}</div>
+          </div>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+            <div className="text-xs text-slate-400">Open</div>
+            <div className="text-2xl font-bold text-rose-400">{stats.campaignKpi?.tasksOpen ?? 0}</div>
+          </div>
+        </div>
+        {(stats.campaignKpi?.autoCreatedThisRequest ?? 0) > 0 && (
+          <p className="text-xs text-emerald-400 mt-3">
+            Auto-created {stats.campaignKpi?.autoCreatedThisRequest} campaign tasks for this week.
+          </p>
+        )}
       </div>
 
       {/* Sales Funnel */}

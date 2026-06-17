@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getDb } from '@/lib/db';
-import { buildWeeklyTaskPlan, CRM_DAILY_ACTIVITIES, CRM_WEEKLY_ACTIVITIES } from '@/lib/campaign-playbook';
+import {
+  CRM_DAILY_ACTIVITIES,
+  CRM_WEEKLY_ACTIVITIES,
+  ensureWeeklyPlaybookTasks,
+  getMondayIsoDate,
+} from '@/lib/campaign-playbook';
 
 interface CreatePlaybookBody {
   startDate?: string;
+  force?: boolean;
 }
 
 export async function GET() {
@@ -23,32 +29,23 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
   const body = (await req.json().catch(() => ({}))) as CreatePlaybookBody;
-  const startDate = body.startDate && /^\d{4}-\d{2}-\d{2}$/.test(body.startDate)
+  const requestedStartDate = body.startDate && /^\d{4}-\d{2}-\d{2}$/.test(body.startDate)
     ? body.startDate
-    : new Date().toISOString().slice(0, 10);
+    : getMondayIsoDate(new Date());
 
   const db = getDb();
-  const plan = buildWeeklyTaskPlan(startDate);
-
-  const insertTask = db.prepare(`
-    INSERT INTO tasks (lead_id, user_id, title, due_date)
-    VALUES (?, ?, ?, ?)
-  `);
-
   const userId = Number((session.user as { id?: string | number } | undefined)?.id ?? 0) || null;
-
-  const insertMany = db.transaction((items: typeof plan) => {
-    for (const item of items) {
-      insertTask.run(null, userId, item.title, item.due_date);
-    }
+  const result = ensureWeeklyPlaybookTasks(db, {
+    userId,
+    now: new Date(`${requestedStartDate}T08:00:00`),
+    force: body.force === true,
   });
-
-  insertMany(plan);
 
   return NextResponse.json({
     ok: true,
-    created: plan.length,
-    startDate,
-    endDate: plan[plan.length - 1]?.due_date ?? startDate,
+    created: result.created,
+    startDate: result.weekStart,
+    endDate: result.weekEnd,
+    skipped: result.skipped,
   });
 }
