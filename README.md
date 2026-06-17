@@ -176,8 +176,8 @@ CRM_DB_FILE=splendid-crm-demo.db
 ### Automation Scheduler
 
 ```bash
-AUTOMATION_API_KEY=your_strong_random_secret
-MORNING_BRIEF_TO=you@example.com,ops@example.com
+AUTOMATION_API_KEY=bf44375f865043bd836de6afbf0b63455a0e17ad29194384b3be0591422189c2
+MORNING_BRIEF_TO=info@splendidtechnology.co.uk
 ```
 
 ## Data Model Notes
@@ -200,6 +200,7 @@ Schema migrations are applied in app startup through `src/lib/db.ts`.
 - Marketing Automation MVP:
 	- `/api/automation/weekly-playbook` (secured scheduler endpoint for weekly playbook creation)
 	- `/api/automation/morning-brief-email` (secured scheduler endpoint for daily email brief)
+	- `/api/automation/linkedin-campaign` (secured endpoint to source UK automation/engineering targets and create CRM LinkedIn outreach tasks)
 	- `/api/contacts` (contact records with campaign/status metadata)
 	- `/api/companies` (company-level source and enrichment records)
 	- `/api/campaigns` (campaign create/list + conversion counters)
@@ -238,6 +239,14 @@ Morning brief email (Mon-Fri at 07:15):
 ```bash
 15 7 * * 1-5 APP_URL=http://127.0.0.1:3002 AUTOMATION_API_KEY=your_strong_random_secret /home/sarapriyain/Projects/CRM/splendid_CRM_git/scripts/trigger-morning-brief-email.sh >> /home/sarapriyain/morning-brief-email.log 2>&1
 ```
+
+LinkedIn campaign queue build (Mon-Fri at 06:45, 150 target companies):
+
+```bash
+45 6 * * 1-5 APP_URL=http://127.0.0.1:3002 AUTOMATION_API_KEY=your_strong_random_secret TARGET_COUNT=150 /home/sarapriyain/Projects/CRM/splendid_CRM_git/scripts/trigger-linkedin-campaign.sh >> /home/sarapriyain/linkedin-campaign.log 2>&1
+```
+
+Note: personal-profile LinkedIn connection requests/messages are not sent by API here; this automation prepares targets and follow-up workflow in CRM for compliant manual sending.
 
 ### Option B: n8n
 
