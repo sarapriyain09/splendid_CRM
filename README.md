@@ -173,6 +173,12 @@ NEXT_PUBLIC_DEMO_MODE=1
 CRM_DB_FILE=splendid-crm-demo.db
 ```
 
+### Automation Scheduler
+
+```bash
+AUTOMATION_API_KEY=your_strong_random_secret
+```
+
 ## Data Model Notes
 
 Main entities:
@@ -191,6 +197,7 @@ Schema migrations are applied in app startup through `src/lib/db.ts`.
 - Core CRM: `/api/leads`, `/api/tasks`, `/api/quotes`, `/api/stats`
 - AI: `/api/ai`, `/api/ai/actions`
 - Marketing Automation MVP:
+	- `/api/automation/weekly-playbook` (secured scheduler endpoint for weekly playbook creation)
 	- `/api/contacts` (contact records with campaign/status metadata)
 	- `/api/companies` (company-level source and enrichment records)
 	- `/api/campaigns` (campaign create/list + conversion counters)
@@ -205,6 +212,35 @@ Schema migrations are applied in app startup through `src/lib/db.ts`.
 - Outreach execution: `/api/prospects/send-email`, `/api/prospects/send-sms`, `/api/prospects/bulk-outreach`
 - LinkedIn: `/api/linkedin/*`
 - Upwork: `/api/upwork/import`, `/api/upwork/leads`
+
+## Autonomous Scheduler (Cron or n8n)
+
+The weekly campaign playbook can run independently of dashboard visits via a secured automation endpoint.
+
+### Option A: Cron on Raspberry Pi
+
+Use the helper script:
+
+```bash
+scripts/trigger-weekly-playbook.sh
+```
+
+Example cron (every Monday at 07:00):
+
+```bash
+0 7 * * 1 APP_URL=http://127.0.0.1:3002 AUTOMATION_API_KEY=your_strong_random_secret /home/sarapriyain/Projects/CRM/splendid_CRM_git/scripts/trigger-weekly-playbook.sh >> /home/sarapriyain/weekly-playbook.log 2>&1
+```
+
+### Option B: n8n
+
+1. Add a Cron node (weekly, Monday, 07:00).
+2. Add HTTP Request node:
+	- Method: POST
+	- URL: `https://your-domain/api/automation/weekly-playbook`
+	- Header: `x-automation-key: <AUTOMATION_API_KEY>`
+	- Body JSON: `{ "force": false }`
+
+The endpoint is idempotent per week, so repeated triggers will not duplicate weekly tasks.
 
 ## Deployment
 
