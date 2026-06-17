@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession();
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await params;
+  const db = getDb();
+  const task = db.prepare(`SELECT t.*, l.company_name FROM tasks t LEFT JOIN leads l ON l.id = t.lead_id WHERE t.id = ?`).get(id);
+
+  if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json(task);
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

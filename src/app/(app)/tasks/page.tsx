@@ -66,7 +66,9 @@ export default function TasksPage() {
               {t.done ? '✓' : ''}
             </button>
             <div className="flex-1 min-w-0">
-              <span className={`text-sm ${t.done ? 'line-through text-slate-500' : 'text-slate-200'}`}>{t.title}</span>
+              <Link href={`/tasks/${t.id}`} className={`text-sm hover:text-blue-300 ${t.done ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+                {t.title}
+              </Link>
               {t.lead_id ? (
                 <Link href={`/leads/${t.lead_id}`} className="ml-2 text-xs text-blue-400 hover:text-blue-300">
                   {t.company_name ?? 'Linked lead'}
