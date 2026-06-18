@@ -3,19 +3,50 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 
+const PLATFORM_APPS = [
+  { key: 'crm', label: 'CRM', href: '/dashboard' },
+  { key: 'sales', label: 'Sales', href: '/sales' },
+  { key: 'callcrm', label: 'CallCRM', href: '/callcrm' },
+  { key: 'marketing', label: 'Marketing', href: '/marketing' },
+  { key: 'automation', label: 'Automation', href: '/automation' },
+  { key: 'analytics', label: 'Analytics', href: '/analytics' },
+] as const;
+
+const PLATFORM_NAV = [
+  {
+    section: 'CRM',
+    items: ['Dashboard', 'Contacts', 'Companies', 'Activities', 'Tasks', 'Notes', 'Documents'],
+  },
+  {
+    section: 'Sales',
+    items: ['Leads', 'Opportunities', 'Pipeline', 'Quotations', 'Forecasts'],
+  },
+  {
+    section: 'CallCRM',
+    items: ['Campaigns', 'Dialer', 'Call Logs', 'Recordings'],
+  },
+  {
+    section: 'Marketing',
+    items: ['Campaigns', 'LinkedIn Campaigns', 'Email Campaigns', 'SMS Campaigns', 'Segments', 'Forms', 'Landing Pages', 'Newsletters'],
+  },
+  {
+    section: 'Automation',
+    items: ['Workflows', 'AI Assistant'],
+  },
+  {
+    section: 'Analytics',
+    items: ['Reports', 'Dashboards'],
+  },
+] as const;
+
 const NAV = [
-  { href: '/dashboard',       icon: '⊞', label: 'Dashboard'           },
-  { href: '/ai-assistant',    icon: 'AI', label: 'AI Assistant'       },
-  { href: '/generate',        icon: '⚡', label: 'Prospect Generator'  },
-  { href: '/prospect-finder', icon: '⊙', label: 'Prospect Finder'     },
-  { href: '/prospects',       icon: '◈', label: 'Prospects'            },
-  { href: '/leads',           icon: '◎', label: 'Leads'                },
-  { href: '/campaigns',       icon: '♜', label: 'Campaigns'            },
-  { href: '/pipeline',        icon: '⊟', label: 'Pipeline'             },
-  { href: '/quotes',          icon: '◻', label: 'Quotes'               },
-  { href: '/tasks',           icon: '✓', label: 'Tasks'                },
-  { href: '/upwork',          icon: 'UW', label: 'Upwork Leads'         },
-  { href: '/linkedin',        icon: 'in', label: 'LinkedIn Leads'      },
+  { href: '/dashboard',  icon: '⊞', label: 'Dashboard'  },
+  { href: '/contacts',   icon: '☏', label: 'Contacts'   },
+  { href: '/companies',  icon: '◍', label: 'Companies'  },
+  { href: '/activities', icon: '◷', label: 'Activities' },
+  { href: '/tasks',      icon: '✓', label: 'Tasks'      },
+  { href: '/notes',      icon: '✎', label: 'Notes'      },
+  { href: '/documents',  icon: '▤', label: 'Documents'  },
 ];
 
 export default function Sidebar() {
@@ -28,21 +59,51 @@ export default function Sidebar() {
     ? NAV
     : [...NAV, { href: '/settings', icon: '⚙', label: 'Settings' }];
 
+  const activePlatformKey = (() => {
+    if (path.startsWith('/sales')) return 'sales';
+    if (path.startsWith('/callcrm')) return 'callcrm';
+    if (path.startsWith('/marketing')) return 'marketing';
+    if (path.startsWith('/automation')) return 'automation';
+    if (path.startsWith('/analytics')) return 'analytics';
+    return 'crm';
+  })();
+
   return (
     <aside className="sidebar-scroll w-60 flex-shrink-0 bg-[#0f1d33] border-r border-[#1d2f4f] flex flex-col h-screen sticky top-0 overflow-y-auto">
       {/* Logo */}
       <div className="px-5 py-4 border-b border-[#1d2f4f]">
+        <div className="text-[10px] uppercase tracking-[0.14em] text-[#8ea6cf] mb-2">Splendid Growth Platform</div>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#2f65c8] shadow-sm flex items-center justify-center text-white font-bold text-sm">ST</div>
           <div>
-            <div className="text-sm font-bold text-[#edf3ff] leading-tight">Splendid CRM</div>
+            <div className="text-sm font-bold text-[#edf3ff] leading-tight">CRM</div>
             <div className="text-xs text-[#b8c8e6]">Splendid Technology</div>
           </div>
         </div>
       </div>
 
+      {/* App switcher */}
+      <div className="px-3 py-3 border-b border-[#1d2f4f]">
+        <div className="text-[10px] uppercase tracking-[0.12em] text-[#8ea6cf] mb-2">Apps</div>
+        <div className="flex flex-wrap gap-1.5">
+          {PLATFORM_APPS.map((app) => (
+            <Link
+              key={app.key}
+              href={app.href}
+              className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors ${
+                activePlatformKey === app.key
+                  ? 'bg-white text-[#10213d]'
+                  : 'bg-[#132845] text-[#9eb3d9] hover:bg-[#1a3154] hover:text-[#dce9ff]'
+              }`}
+            >
+              {app.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+
       {/* Nav */}
-      <nav className="flex-1 px-3 py-3 space-y-1">
+      <nav className="px-3 py-3 space-y-1 border-b border-[#1d2f4f]">
         {navItems.map(({ href, icon, label }) => {
           const active = href === '/dashboard' ? path === '/dashboard' : path.startsWith(href);
           return (
@@ -61,6 +122,25 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Platform map */}
+      <div className="flex-1 px-3 py-3 overflow-y-auto">
+        <div className="text-[10px] uppercase tracking-[0.12em] text-[#8ea6cf] mb-2">Platform Navigation</div>
+        <div className="space-y-3">
+          {PLATFORM_NAV.map((group) => (
+            <div key={group.section} className="rounded-md border border-[#1f3354] bg-[#112340] p-2">
+              <div className="text-[11px] font-semibold text-[#dce9ff]">{group.section}</div>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {group.items.map((item) => (
+                  <span key={item} className="text-[10px] px-1.5 py-0.5 rounded bg-[#1a3154] text-[#a9bddf]">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* User */}
       <div className="px-3 py-4 border-t border-[#1d2f4f]">

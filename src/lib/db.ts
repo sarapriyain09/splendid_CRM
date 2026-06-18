@@ -146,6 +146,8 @@ function initSchema(db: Database.Database) {
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       lead_id    INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
       user_id    INTEGER REFERENCES users(id),
+      contact_id INTEGER REFERENCES contacts(id) ON DELETE SET NULL,
+      company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL,
       content    TEXT    NOT NULL,
       created_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
@@ -155,9 +157,41 @@ function initSchema(db: Database.Database) {
       lead_id    INTEGER REFERENCES leads(id) ON DELETE CASCADE,
       user_id    INTEGER REFERENCES users(id),
       title      TEXT    NOT NULL,
+      description TEXT,
+      priority   TEXT    NOT NULL DEFAULT 'Medium',
       due_date   TEXT,
+      assigned_user_id INTEGER REFERENCES users(id),
+      status     TEXT    NOT NULL DEFAULT 'Open',
       done       INTEGER NOT NULL DEFAULT 0,
       created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS documents (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      title        TEXT    NOT NULL,
+      file_name    TEXT    NOT NULL,
+      file_type    TEXT    NOT NULL,
+      file_size    INTEGER,
+      file_url     TEXT,
+      contact_id   INTEGER REFERENCES contacts(id) ON DELETE SET NULL,
+      company_id   INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+      created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS attachments (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      document_id   INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+      related_table TEXT,
+      related_id    INTEGER,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS tags (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT    NOT NULL UNIQUE,
+      color       TEXT,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS quotes (
@@ -427,6 +461,30 @@ function initSchema(db: Database.Database) {
   }
   if (!contactColNames.includes('campaign_id')) {
     db.exec(`ALTER TABLE contacts ADD COLUMN campaign_id INTEGER REFERENCES campaigns(id) ON DELETE SET NULL`);
+  }
+
+  const taskCols = db.prepare(`PRAGMA table_info(tasks)`).all() as { name: string }[];
+  const taskColNames = taskCols.map(c => c.name);
+  if (!taskColNames.includes('description')) {
+    db.exec(`ALTER TABLE tasks ADD COLUMN description TEXT`);
+  }
+  if (!taskColNames.includes('priority')) {
+    db.exec(`ALTER TABLE tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'Medium'`);
+  }
+  if (!taskColNames.includes('assigned_user_id')) {
+    db.exec(`ALTER TABLE tasks ADD COLUMN assigned_user_id INTEGER REFERENCES users(id)`);
+  }
+  if (!taskColNames.includes('status')) {
+    db.exec(`ALTER TABLE tasks ADD COLUMN status TEXT NOT NULL DEFAULT 'Open'`);
+  }
+
+  const noteCols = db.prepare(`PRAGMA table_info(notes)`).all() as { name: string }[];
+  const noteColNames = noteCols.map(c => c.name);
+  if (!noteColNames.includes('contact_id')) {
+    db.exec(`ALTER TABLE notes ADD COLUMN contact_id INTEGER REFERENCES contacts(id) ON DELETE SET NULL`);
+  }
+  if (!noteColNames.includes('company_id')) {
+    db.exec(`ALTER TABLE notes ADD COLUMN company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL`);
   }
 
   const campaignCols = db.prepare(`PRAGMA table_info(campaigns)`).all() as { name: string }[];

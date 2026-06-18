@@ -19,8 +19,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const body = await req.json();
+  const body = await req.json() as Record<string, unknown>;
   const db = getDb();
+
+  if (typeof body.status === 'string' && body.done === undefined) {
+    body.done = body.status === 'Completed' ? 1 : 0;
+  }
+  if (typeof body.done === 'number' && body.status === undefined) {
+    body.status = body.done ? 'Completed' : 'Open';
+  }
 
   const fields = Object.entries(body).map(([k]) => `${k} = ?`).join(', ');
   const values = Object.values(body);
