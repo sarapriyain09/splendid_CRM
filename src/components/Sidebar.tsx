@@ -100,8 +100,8 @@ export default function Sidebar() {
             <Link
               key={app.key}
               href={app.href}
-              target={app.external ? '_blank' : undefined}
-              rel={app.external ? 'noopener noreferrer' : undefined}
+              target={'external' in app && app.external ? '_blank' : undefined}
+              rel={'external' in app && app.external ? 'noopener noreferrer' : undefined}
               className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors ${
                 activePlatformKey === app.key
                   ? 'bg-white text-[#10213d]'
