@@ -5,9 +5,19 @@ import { signOut, useSession } from 'next-auth/react';
 
 const PLATFORM_APPS = [
   { key: 'crm', label: 'CRM', href: '/dashboard' },
-  { key: 'sales', label: 'Sales', href: '/sales' },
+  {
+    key: 'sales',
+    label: 'Sales',
+    href: 'mailto:sales@splendidtechnology.co.uk',
+    external: true,
+  },
   { key: 'callcrm', label: 'CallCRM', href: '/callcrm' },
-  { key: 'marketing', label: 'Marketing', href: '/marketing' },
+  {
+    key: 'marketing',
+    label: 'Marketing',
+    href: 'mailto:marketing@splendidtechnology.co.uk',
+    external: true,
+  },
   { key: 'automation', label: 'Automation', href: '/automation' },
   { key: 'analytics', label: 'Analytics', href: '/analytics' },
 ] as const;
@@ -90,6 +100,8 @@ export default function Sidebar() {
             <Link
               key={app.key}
               href={app.href}
+              target={app.external ? '_blank' : undefined}
+              rel={app.external ? 'noopener noreferrer' : undefined}
               className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors ${
                 activePlatformKey === app.key
                   ? 'bg-white text-[#10213d]'

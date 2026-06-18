@@ -5,7 +5,7 @@ Date: 2026-06-08
 ## Target Environment
 - Host: sarapriyain@192.168.0.64
 - Device: Splendid-R1 (Raspberry Pi 5)
-- App path: ~/Projects/CRM/splendid_CRM
+- App path: ~/Projects/CRM/splendid_CRM_git
 - Public domain: crm.splendidtechnology.co.uk (Cloudflare)
 
 ## Pre-Work Checklist
@@ -15,19 +15,19 @@ Date: 2026-06-08
 
 ## Core Remote Commands
 ```bash
-ssh sarapriyain@192.168.0.64 "cd ~/Projects/CRM/splendid_CRM && pm2 status"
-ssh sarapriyain@192.168.0.64 "cd ~/Projects/CRM/splendid_CRM && pm2 logs --lines 100"
+ssh sarapriyain@192.168.0.64 "cd ~/Projects/CRM/splendid_CRM_git && pm2 status"
+ssh sarapriyain@192.168.0.64 "cd ~/Projects/CRM/splendid_CRM_git && pm2 logs --lines 100"
 ```
 
 ## Deployment/Synchronization Options
 ### Option A: Git pull on Raspberry Pi
 ```bash
-ssh sarapriyain@192.168.0.64 "cd ~/Projects/CRM/splendid_CRM && git pull"
+ssh sarapriyain@192.168.0.64 "cd ~/Projects/CRM/splendid_CRM_git && git pull"
 ```
 
 ### Option B: File copy from local machine
 Use deploy script or copy selected files to:
-- ~/Projects/CRM/splendid_CRM
+- ~/Projects/CRM/splendid_CRM_git
 
 ## PM2 App Verification
 ```bash
@@ -46,6 +46,6 @@ ssh sarapriyain@192.168.0.64 "pm2 describe splendid-crm"
 	- `src/app/(app)/layout.tsx`
 	- `src/app/login/page.tsx`
 	- `src/components/Sidebar.tsx`
-- Ran remote build successfully in `~/Projects/CRM/splendid_CRM` (`next build` passed).
+- Ran remote build successfully in `~/Projects/CRM/splendid_CRM_git` (`next build` passed).
 - Restarted PM2 process: `pm2 restart splendid-crm`.
 - Verified PM2 after deployment: `splendid-crm` is `online` (new PID, restart count incremented).

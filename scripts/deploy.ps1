@@ -1,6 +1,12 @@
 # Deploy changed source files to Pi and rebuild
-$PI = "sarapriyain@192.168.0.64"
-$REMOTE = "/home/sarapriyain/Projects/CRM/splendid_CRM"
+# Default target is the live PM2 cwd for splendid-crm.
+param(
+  [string]$PI = "sarapriyain@192.168.0.64",
+  [string]$REMOTE = "/home/sarapriyain/Projects/CRM/splendid_CRM_git"
+)
+
+Write-Host "Target Pi host: $PI" -ForegroundColor Cyan
+Write-Host "Target remote dir: $REMOTE" -ForegroundColor Cyan
 
 $files = @(
   # Core lib
