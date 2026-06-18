@@ -11,7 +11,12 @@ const PLATFORM_APPS = [
     href: 'https://sales.splendidtechnology.co.uk/',
     external: true,
   },
-  { key: 'callcrm', label: 'CallCRM', href: '/callcrm' },
+  {
+    key: 'callcrm',
+    label: 'CallCRM',
+    href: 'https://callcrm.splendidtechnology.co.uk/',
+    external: true,
+  },
   {
     key: 'marketing',
     label: 'Marketing',
