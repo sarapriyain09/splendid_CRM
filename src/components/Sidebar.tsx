@@ -22,33 +22,6 @@ const PLATFORM_APPS = [
   { key: 'analytics', label: 'Analytics', href: '/analytics' },
 ] as const;
 
-const PLATFORM_NAV = [
-  {
-    section: 'CRM',
-    items: ['Dashboard', 'Contacts', 'Companies', 'Activities', 'Tasks', 'Notes', 'Documents'],
-  },
-  {
-    section: 'Sales',
-    items: ['Leads', 'Opportunities', 'Pipeline', 'Quotations', 'Forecasts'],
-  },
-  {
-    section: 'CallCRM',
-    items: ['Campaigns', 'Dialer', 'Call Logs', 'Recordings'],
-  },
-  {
-    section: 'Marketing',
-    items: ['Campaigns', 'LinkedIn Campaigns', 'Email Campaigns', 'SMS Campaigns', 'Segments', 'Forms', 'Landing Pages', 'Newsletters'],
-  },
-  {
-    section: 'Automation',
-    items: ['Workflows', 'AI Assistant'],
-  },
-  {
-    section: 'Analytics',
-    items: ['Reports', 'Dashboards'],
-  },
-] as const;
-
 const NAV = [
   { href: '/dashboard',  icon: '⊞', label: 'Dashboard'  },
   { href: '/contacts',   icon: '☏', label: 'Contacts'   },
@@ -134,25 +107,6 @@ export default function Sidebar() {
           );
         })}
       </nav>
-
-      {/* Platform map */}
-      <div className="flex-1 px-3 py-3 overflow-y-auto">
-        <div className="text-[10px] uppercase tracking-[0.12em] text-[#8ea6cf] mb-2">Platform Navigation</div>
-        <div className="space-y-3">
-          {PLATFORM_NAV.map((group) => (
-            <div key={group.section} className="rounded-md border border-[#1f3354] bg-[#112340] p-2">
-              <div className="text-[11px] font-semibold text-[#dce9ff]">{group.section}</div>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {group.items.map((item) => (
-                  <span key={item} className="text-[10px] px-1.5 py-0.5 rounded bg-[#1a3154] text-[#a9bddf]">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* User */}
       <div className="px-3 py-4 border-t border-[#1d2f4f]">
