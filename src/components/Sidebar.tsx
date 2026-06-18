@@ -8,14 +8,14 @@ const PLATFORM_APPS = [
   {
     key: 'sales',
     label: 'Sales',
-    href: 'mailto:sales@splendidtechnology.co.uk',
+    href: 'https://sales.splendidtechnology.co.uk/',
     external: true,
   },
   { key: 'callcrm', label: 'CallCRM', href: '/callcrm' },
   {
     key: 'marketing',
     label: 'Marketing',
-    href: 'mailto:marketing@splendidtechnology.co.uk',
+    href: 'https://marketing.splendidtechnology.co.uk/',
     external: true,
   },
   { key: 'automation', label: 'Automation', href: '/automation' },
