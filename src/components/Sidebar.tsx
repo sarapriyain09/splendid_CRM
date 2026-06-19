@@ -57,7 +57,7 @@ export default function Sidebar() {
   })();
 
   return (
-    <aside className="sidebar-scroll w-60 flex-shrink-0 bg-[#0f1d33] border-r border-[#1d2f4f] flex flex-col h-screen sticky top-0 overflow-y-auto">
+    <aside className="sidebar-scroll w-60 flex-shrink-0 bg-[#0f1d33] border-r border-[#1d2f4f] flex flex-col h-screen sticky top-0 overflow-y-scroll">
       {/* Logo */}
       <div className="px-5 py-4 border-b border-[#1d2f4f]">
         <div className="text-[10px] uppercase tracking-[0.14em] text-[#8ea6cf] mb-2">Splendid Growth Platform</div>

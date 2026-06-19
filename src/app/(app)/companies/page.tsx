@@ -210,7 +210,7 @@ export default function CompaniesPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
+      <div className="overflow-x-scroll border border-slate-200 rounded-xl bg-white">
         {loadError ? <div className="px-4 py-3 text-sm text-red-600 border-b border-slate-200">{loadError}</div> : null}
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
