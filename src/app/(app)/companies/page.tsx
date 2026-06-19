@@ -212,35 +212,43 @@ export default function CompaniesPage() {
 
       <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
         {loadError ? <div className="px-4 py-3 text-sm text-red-600 border-b border-slate-200">{loadError}</div> : null}
-        <table className="w-full table-fixed text-sm">
+        <table className="w-full table-fixed text-xs md:text-sm">
+          <colgroup>
+            <col className="w-[22%]" />
+            <col className="w-[16%]" />
+            <col className="w-[16%]" />
+            <col className="w-[22%]" />
+            <col className="w-[14%]" />
+            <col className="w-[10%]" />
+          </colgroup>
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
             <tr>
-              <th className="text-left px-4 py-2">Name</th>
-              <th className="text-left px-4 py-2">Industry</th>
-              <th className="text-left px-4 py-2">Country</th>
-              <th className="text-left px-4 py-2">Website</th>
-              <th className="text-left px-4 py-2">Contacts/Leads</th>
-              <th className="text-left px-4 py-2">Status</th>
+              <th className="text-left px-2 md:px-3 py-2">Name</th>
+              <th className="text-left px-2 md:px-3 py-2">Industry</th>
+              <th className="text-left px-2 md:px-3 py-2">Country</th>
+              <th className="text-left px-2 md:px-3 py-2">Website</th>
+              <th className="text-left px-2 md:px-3 py-2">Contacts/Leads</th>
+              <th className="text-left px-2 md:px-3 py-2">Status</th>
             </tr>
           </thead>
           <tbody>
             {visible.map((row) => (
               <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-2">
+                <td className="px-2 md:px-3 py-2">
                   <Link href={`/companies/${row.id}`} className="block truncate text-blue-700 hover:text-blue-600 font-medium" title={row.name}>
                     {row.name}
                   </Link>
                 </td>
-                <td className="px-4 py-2 text-slate-700">{primaryIndustry(row.industry)}</td>
-                <td className="px-4 py-2 text-slate-700">{row.country ?? '-'}</td>
-                <td className="px-4 py-2 text-slate-700 truncate" title={row.website ?? '-'}>{row.website ?? '-'}</td>
-                <td className="px-4 py-2 text-slate-700">{row.lead_count ?? 0}</td>
-                <td className="px-4 py-2 text-slate-700 truncate" title={row.status}>{row.status}</td>
+                <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={primaryIndustry(row.industry)}>{primaryIndustry(row.industry)}</td>
+                <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={row.country ?? '-'}>{row.country ?? '-'}</td>
+                <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={row.website ?? '-'}>{row.website ?? '-'}</td>
+                <td className="px-2 md:px-3 py-2 text-slate-700">{row.lead_count ?? 0}</td>
+                <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={row.status}>{row.status}</td>
               </tr>
             ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-500">No companies found.</td>
+                <td colSpan={6} className="px-2 md:px-3 py-10 text-center text-slate-500">No companies found.</td>
               </tr>
             )}
           </tbody>
