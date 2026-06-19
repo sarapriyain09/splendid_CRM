@@ -259,6 +259,60 @@ export default function CompanyDetailPage() {
                 );
               }
 
+              if (active === 'activities') {
+                return (
+                  <div key={String(row.id ?? idx)} className="border border-slate-200 rounded-lg p-3 bg-white text-sm">
+                    <div className="font-semibold text-slate-900">{toDisplayValue(row.activity_type)}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 text-slate-700">
+                      <div><span className="text-slate-500">Date:</span> {toDisplayValue(row.date)}</div>
+                      <div><span className="text-slate-500">Contact:</span> {toDisplayValue(row.contact_name)}</div>
+                      <div className="md:col-span-2"><span className="text-slate-500">Notes:</span> {toDisplayValue(row.notes)}</div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (active === 'tasks') {
+                return (
+                  <div key={String(row.id ?? idx)} className="border border-slate-200 rounded-lg p-3 bg-white text-sm">
+                    <div className="font-semibold text-slate-900">{toDisplayValue(row.title)}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 text-slate-700">
+                      <div><span className="text-slate-500">Status:</span> {toDisplayValue(row.status)}</div>
+                      <div><span className="text-slate-500">Priority:</span> {toDisplayValue(row.priority)}</div>
+                      <div><span className="text-slate-500">Due Date:</span> {toDisplayValue(row.due_date)}</div>
+                      <div><span className="text-slate-500">Done:</span> {toDisplayValue(row.done)}</div>
+                      <div className="md:col-span-2"><span className="text-slate-500">Description:</span> {toDisplayValue(row.description)}</div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (active === 'notes') {
+                return (
+                  <div key={String(row.id ?? idx)} className="border border-slate-200 rounded-lg p-3 bg-white text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-700">
+                      <div><span className="text-slate-500">Created:</span> {toDisplayValue(row.created_at)}</div>
+                      <div><span className="text-slate-500">User:</span> {toDisplayValue(row.user_name)}</div>
+                      <div className="md:col-span-2"><span className="text-slate-500">Content:</span> {toDisplayValue(row.content)}</div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (active === 'documents') {
+                return (
+                  <div key={String(row.id ?? idx)} className="border border-slate-200 rounded-lg p-3 bg-white text-sm">
+                    <div className="font-semibold text-slate-900">{toDisplayValue(row.title)}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 text-slate-700">
+                      <div><span className="text-slate-500">File Name:</span> {toDisplayValue(row.file_name)}</div>
+                      <div><span className="text-slate-500">Type:</span> {toDisplayValue(row.file_type)}</div>
+                      <div><span className="text-slate-500">Created:</span> {toDisplayValue(row.created_at)}</div>
+                      <div><span className="text-slate-500">URL:</span> {toDisplayValue(row.file_url)}</div>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div key={String(row.id ?? idx)} className="border border-slate-200 rounded-lg p-3 bg-white text-sm">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
