@@ -119,6 +119,44 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## PostgreSQL Migration (SQLite -> PostgreSQL)
+
+The app supports a safe dual-mode database adapter:
+
+- `sqlite` mode (default): used when `DATABASE_URL` is not a Postgres URL.
+- `postgres` mode: used when `DATABASE_URL` starts with `postgres://` or `postgresql://`.
+
+### One-time data migration
+
+1. Ensure PostgreSQL database is created and reachable.
+2. Keep your current SQLite DB file available (default: `data/splendid-crm.db`).
+3. Run migration from project root:
+
+```bash
+DATABASE_URL=postgresql://user:pass@host:5432/dbname npm run migrate:postgres
+```
+
+Optional source override:
+
+```bash
+SQLITE_PATH=/absolute/path/to/splendid-crm.db DATABASE_URL=postgresql://user:pass@host:5432/dbname npm run migrate:postgres
+```
+
+### Cutover steps
+
+1. Set `DATABASE_URL` in runtime environment.
+2. Confirm mode:
+
+```bash
+npm run db:mode
+```
+
+3. Build and restart app process.
+
+Notes:
+- Migration script creates missing tables/indexes in Postgres based on current SQLite schema and copies data table-by-table.
+- Existing SQLite file is not modified by the migration script.
+
 ### Production build test
 
 ```bash
