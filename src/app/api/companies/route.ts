@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
+import { hasTable, isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
 import type { Company } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -18,17 +18,19 @@ export async function GET(req: NextRequest) {
   const params: (string | number)[] = [];
 
   if (isPostgresDb()) {
-    // Bootstrap companies from existing lead names so list is not empty after migration.
-    await runStatement(`
-      INSERT INTO companies (name, status)
-      SELECT DISTINCT l.company_name, 'Prospect'
-      FROM leads l
-      WHERE l.company_name IS NOT NULL
-        AND TRIM(l.company_name) <> ''
-        AND NOT EXISTS (
-          SELECT 1 FROM companies c WHERE lower(c.name) = lower(l.company_name)
-        )
-    `);
+    // Bootstrap companies from legacy leads only when that table exists.
+    if (await hasTable('leads')) {
+      await runStatement(`
+        INSERT INTO companies (name, status)
+        SELECT DISTINCT l.company_name, 'Prospect'
+        FROM leads l
+        WHERE l.company_name IS NOT NULL
+          AND TRIM(l.company_name) <> ''
+          AND NOT EXISTS (
+            SELECT 1 FROM companies c WHERE lower(c.name) = lower(l.company_name)
+          )
+      `);
+    }
 
     sql = `
       SELECT c.*, COUNT(ct.id) AS lead_count
