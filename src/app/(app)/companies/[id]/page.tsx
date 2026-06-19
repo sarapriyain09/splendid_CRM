@@ -28,10 +28,59 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 export default function CompanyDetailPage({ params }: { params: { id: string } }) {
   const [active, setActive] = useState<TabKey>('contacts');
   const [data, setData] = useState<any>(null);
+  const [name, setName] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [country, setCountry] = useState('');
+  const [website, setWebsite] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [status, setStatus] = useState('Prospect');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/companies/${params.id}`).then((r) => r.json()).then(setData);
+    fetch(`/api/companies/${params.id}`).then((r) => r.json()).then((payload) => {
+      setData(payload);
+      setName(payload?.company?.name ?? '');
+      setIndustry(payload?.company?.industry ?? '');
+      setCountry(payload?.company?.country ?? '');
+      setWebsite(payload?.company?.website ?? '');
+      setLinkedinUrl(payload?.company?.linkedin_url ?? '');
+      setStatus(payload?.company?.status ?? 'Prospect');
+    });
   }, [params.id]);
+
+  const saveCompany = async () => {
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await fetch(`/api/companies/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim() || null,
+          industry: industry.trim() || null,
+          country: country.trim() || null,
+          website: website.trim() || null,
+          linkedin_url: linkedinUrl.trim() || null,
+          status,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to update company');
+      }
+
+      setData((prev: any) => ({ ...prev, company: payload }));
+      setSuccess('Company updated.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update company');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const rows = useMemo(() => {
     if (!data?.tabs) return [];
@@ -47,6 +96,59 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
       <div>
         <h1 className="text-2xl font-bold text-slate-900">{data.company.name}</h1>
         <p className="text-sm text-slate-600 mt-1">{data.company.industry ?? '-'} · {data.company.country ?? '-'}</p>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="text-sm font-semibold text-slate-800 mb-3">Company Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Company name"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            placeholder="Industry"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            placeholder="Country"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            placeholder="Website"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={linkedinUrl}
+            onChange={(e) => setLinkedinUrl(e.target.value)}
+            placeholder="LinkedIn URL"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            placeholder="Status"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            onClick={saveCompany}
+            disabled={saving}
+            className="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-60"
+          >
+            {saving ? 'Saving...' : 'Save Company'}
+          </button>
+          {success ? <span className="text-sm text-emerald-700">{success}</span> : null}
+          {error ? <span className="text-sm text-red-600">{error}</span> : null}
+        </div>
       </div>
 
       <div className="border-b border-slate-200 overflow-x-auto">

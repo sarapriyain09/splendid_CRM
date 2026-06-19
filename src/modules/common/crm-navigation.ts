@@ -1,7 +1,7 @@
 export const CRM_NAVIGATION = [
+  { href: '/companies', label: 'Accounts' },
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/contacts', label: 'Contacts' },
-  { href: '/companies', label: 'Companies' },
   { href: '/activities', label: 'Activities' },
   { href: '/tasks', label: 'Tasks' },
   { href: '/notes', label: 'Notes' },

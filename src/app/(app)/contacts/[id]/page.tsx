@@ -26,10 +26,12 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 
 type ContactDetailResponse = {
   contact?: {
-    id: number;
+    id: number | string;
     lead_id?: number | null;
-    company_id?: number | null;
+    company_id?: number | string | null;
+    company_name?: string | null;
     name?: string | null;
+    job_title?: string | null;
     email?: string | null;
     phone?: string | null;
     status?: string | null;
@@ -52,6 +54,11 @@ export default function ContactDetailPage() {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   const [status, setStatus] = useState('Pending');
+  const [name, setName] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -78,13 +85,19 @@ export default function ContactDetailPage() {
     if (!id) return;
 
     const response = await fetch(`/api/contacts/${id}`);
-    const payload = (await response.json()) as ContactDetailResponse;
+    const text = await response.text();
+    const payload = (text ? JSON.parse(text) : {}) as ContactDetailResponse;
 
     if (!response.ok) {
       throw new Error(payload.error || 'Failed to load contact');
     }
 
     setData(payload);
+    setName(payload.contact?.name ?? '');
+    setCompanyName(payload.contact?.company_name ?? '');
+    setJobTitle(payload.contact?.job_title ?? '');
+    setEmail(payload.contact?.email ?? '');
+    setPhone(payload.contact?.phone ?? '');
     setStatus(payload.contact?.status ?? 'Pending');
     setLinkedinUrl(payload.contact?.linkedin_url ?? payload.contact?.linkedin ?? '');
   }, [id]);
@@ -130,6 +143,11 @@ export default function ContactDetailPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: name.trim() || null,
+          company_name: companyName.trim(),
+          job_title: jobTitle.trim() || null,
+          email: email.trim() || null,
+          phone: phone.trim() || null,
           status,
           linkedin_url: linkedinUrl.trim() || null,
           linkedin: linkedinUrl.trim() || null,
@@ -147,6 +165,11 @@ export default function ContactDetailPage() {
           ...prev,
           contact: {
             ...prev.contact,
+            name: (payload.name as string | null | undefined) ?? (name.trim() || null),
+            company_name: (payload.company_name as string | null | undefined) ?? (companyName.trim() || null),
+            job_title: (payload.job_title as string | null | undefined) ?? (jobTitle.trim() || null),
+            email: (payload.email as string | null | undefined) ?? (email.trim() || null),
+            phone: (payload.phone as string | null | undefined) ?? (phone.trim() || null),
             status: (payload.status as string | null | undefined) ?? status,
             linkedin_url: (payload.linkedin_url as string | null | undefined) ?? (linkedinUrl.trim() || null),
             linkedin: (payload.linkedin as string | null | undefined) ?? (linkedinUrl.trim() || null),
@@ -326,8 +349,58 @@ export default function ContactDetailPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-slate-800 mb-3">LinkedIn Connection</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+        <h2 className="text-sm font-semibold text-slate-800 mb-3">Contact Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+          <label className="text-sm text-slate-700">
+            <span className="block mb-1">Name</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Full name"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </label>
+
+          <label className="text-sm text-slate-700">
+            <span className="block mb-1">Company</span>
+            <input
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="Company"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </label>
+
+          <label className="text-sm text-slate-700">
+            <span className="block mb-1">Job Title</span>
+            <input
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="Job title"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </label>
+
+          <label className="text-sm text-slate-700">
+            <span className="block mb-1">Email</span>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </label>
+
+          <label className="text-sm text-slate-700">
+            <span className="block mb-1">Phone</span>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Phone"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </label>
+
           <label className="text-sm text-slate-700">
             <span className="block mb-1">Status</span>
             <select

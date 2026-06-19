@@ -16,11 +16,61 @@ type CompanyRow = {
 export default function CompaniesPage() {
   const [rows, setRows] = useState<CompanyRow[]>([]);
   const [query, setQuery] = useState('');
+  const [name, setName] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [country, setCountry] = useState('');
+  const [website, setWebsite] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadCompanies = () => {
     const url = query.trim() ? `/api/companies?search=${encodeURIComponent(query.trim())}` : '/api/companies';
     fetch(url).then((r) => r.json()).then((data) => setRows(Array.isArray(data) ? data : []));
+  };
+
+  useEffect(() => {
+    loadCompanies();
   }, [query]);
+
+  const addCompany = async () => {
+    if (!name.trim()) {
+      setError('Company name is required.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          industry: industry.trim() || null,
+          country: country.trim() || null,
+          website: website.trim() || null,
+          linkedin_url: linkedinUrl.trim() || null,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to add company');
+      }
+
+      setName('');
+      setIndustry('');
+      setCountry('');
+      setWebsite('');
+      setLinkedinUrl('');
+      loadCompanies();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to add company');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const visible = useMemo(() => rows.slice(0, 250), [rows]);
 
@@ -34,6 +84,52 @@ export default function CompaniesPage() {
           placeholder="Search companies"
           className="w-full max-w-sm border border-slate-300 rounded-lg px-3 py-2 text-sm"
         />
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="text-sm font-semibold text-slate-800 mb-3">Add Company</h2>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Company name"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            placeholder="Industry"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            placeholder="Country"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            placeholder="Website"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={linkedinUrl}
+            onChange={(e) => setLinkedinUrl(e.target.value)}
+            placeholder="LinkedIn URL"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            onClick={addCompany}
+            disabled={saving}
+            className="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-60"
+          >
+            {saving ? 'Adding...' : 'Add Company'}
+          </button>
+          {error ? <span className="text-sm text-red-600">{error}</span> : null}
+        </div>
       </div>
 
       <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">

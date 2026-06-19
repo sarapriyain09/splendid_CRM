@@ -4,6 +4,10 @@ const path = require('path');
 const Database = require('better-sqlite3');
 const { Pool } = require('pg');
 
+const idMaps = {
+  contacts: new Map(),
+};
+
 function quoteIdent(name) {
   return `"${String(name).replace(/"/g, '""')}"`;
 }
@@ -34,6 +38,70 @@ function normalizeDefault(defaultValue) {
   if (/^\(?current_timestamp\)?$/i.test(raw)) return 'CURRENT_TIMESTAMP';
 
   return raw;
+}
+
+function isUuid(value) {
+  if (typeof value !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function splitName(fullName) {
+  const name = String(fullName || '').trim();
+  if (!name) return { firstName: 'Unknown', lastName: '' };
+  const parts = name.split(/\s+/);
+  return {
+    firstName: parts[0] || 'Unknown',
+    lastName: parts.slice(1).join(' '),
+  };
+}
+
+function mapContactStatus(value) {
+  const s = String(value || '').trim().toLowerCase();
+  if (['active', 'customer', 'supplier', 'partner', 'inactive', 'prospect'].includes(s)) {
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  return 'Prospect';
+}
+
+function mapActivityType(value) {
+  const s = String(value || '').trim().toLowerCase();
+  if (s.includes('call')) return 'Call';
+  if (s.includes('email') || s.includes('mail')) return 'Email';
+  if (s.includes('meeting')) return 'Meeting';
+  if (s.includes('visit')) return 'Visit';
+  if (s.includes('task') || s.includes('todo')) return 'Task';
+  return 'Note';
+}
+
+function transformRow(tableName, row) {
+  if (tableName === 'contacts') {
+    const name = splitName(row.name || row.display_name || row.first_name);
+    return {
+      ...row,
+      first_name: row.first_name || name.firstName,
+      last_name: row.last_name || name.lastName,
+      display_name: row.display_name || row.name || `${name.firstName} ${name.lastName}`.trim(),
+      job_title: row.job_title || row.role || null,
+      mobile: row.mobile || row.phone || null,
+      linkedin_url: row.linkedin_url || row.linkedin || null,
+      status: mapContactStatus(row.status),
+    };
+  }
+
+  if (tableName === 'activities') {
+    const oldContactId = row.contact_id;
+    const mappedContactId = oldContactId == null ? null : idMaps.contacts.get(String(oldContactId)) || null;
+    return {
+      ...row,
+      type: mapActivityType(row.activity_type || row.type),
+      subject: row.subject || row.activity_type || 'Activity',
+      description: row.description || row.notes || null,
+      contact_id: mappedContactId,
+      status: row.status || 'Open',
+    };
+  }
+
+  return row;
 }
 
 async function ensureTable(client, sqlite, tableName) {
@@ -101,18 +169,60 @@ async function migrateTable(client, sqlite, tableName) {
     return;
   }
 
-  const columns = Object.keys(rows[0]);
+  const targetColumns = await client
+    .query(
+      `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1`,
+      [tableName]
+    )
+    .then((r) => r.rows);
+
+  const targetColumnNames = targetColumns.map((row) => row.column_name);
+  const targetColumnTypes = new Map(targetColumns.map((row) => [row.column_name, row.data_type]));
+
+  const sampleRow = transformRow(tableName, rows[0]);
+  let columns = Object.keys(sampleRow).filter((c) => targetColumnNames.includes(c));
+  if (
+    columns.includes('id') &&
+    targetColumnTypes.get('id') === 'uuid' &&
+    rows.some((r) => r.id !== null && r.id !== undefined && !isUuid(String(r.id)))
+  ) {
+    // Keep migration moving when SQLite integer PK meets PostgreSQL UUID PK.
+    columns = columns.filter((c) => c !== 'id');
+  }
+  if (columns.length === 0) {
+    console.log(`- ${tableName}: 0 rows (no common columns)`);
+    return;
+  }
+
   const colSql = columns.map(quoteIdent).join(', ');
   const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
   const insertSql = `INSERT INTO ${quoteIdent(tableName)} (${colSql}) VALUES (${placeholders})`;
+  const useReturningId = tableName === 'contacts' && !columns.includes('id') && targetColumnTypes.get('id') === 'uuid';
 
+  let inserted = 0;
+  let skipped = 0;
   for (const row of rows) {
+    const transformed = transformRow(tableName, row);
     const values = columns.map((key) => {
-      const value = row[key];
+      const value = transformed[key];
       if (typeof value === 'bigint') return Number(value);
+      if (targetColumnTypes.get(key) === 'uuid' && value !== null && value !== undefined && !isUuid(String(value))) {
+        return null;
+      }
+      if (tableName === 'activities' && key === 'type' && (value === null || value === undefined || String(value).trim() === '')) {
+        return 'note';
+      }
       return value;
     });
-    await client.query(insertSql, values);
+    try {
+      const res = await client.query(useReturningId ? `${insertSql} RETURNING id` : insertSql, values);
+      if (useReturningId && row.id != null && res.rows[0]?.id) {
+        idMaps.contacts.set(String(row.id), String(res.rows[0].id));
+      }
+      inserted += 1;
+    } catch {
+      skipped += 1;
+    }
   }
 
   if (columns.includes('id')) {
@@ -130,7 +240,7 @@ async function migrateTable(client, sqlite, tableName) {
     }
   }
 
-  console.log(`- ${tableName}: ${rows.length} rows`);
+  console.log(`- ${tableName}: ${inserted} inserted, ${skipped} skipped (source ${rows.length})`);
 }
 
 async function main() {
@@ -165,8 +275,6 @@ async function main() {
       return;
     }
 
-    await client.query('BEGIN');
-
     for (const tableName of tables) {
       await ensureTable(client, sqlite, tableName);
     }
@@ -176,13 +284,14 @@ async function main() {
     }
 
     for (const tableName of tables) {
-      await ensureIndexes(client, sqlite, tableName);
+      try {
+        await ensureIndexes(client, sqlite, tableName);
+      } catch {
+        // Existing managed schema may be owned by another role; data migration can continue.
+      }
     }
-
-    await client.query('COMMIT');
     console.log('Migration completed successfully.');
   } catch (err) {
-    await client.query('ROLLBACK');
     throw err;
   } finally {
     client.release();

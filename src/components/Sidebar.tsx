@@ -28,9 +28,9 @@ const PLATFORM_APPS = [
 ] as const;
 
 const NAV = [
+  { href: '/companies',  icon: '◍', label: 'Accounts'   },
   { href: '/dashboard',  icon: '⊞', label: 'Dashboard'  },
   { href: '/contacts',   icon: '☏', label: 'Contacts'   },
-  { href: '/companies',  icon: '◍', label: 'Companies'  },
   { href: '/activities', icon: '◷', label: 'Activities' },
   { href: '/tasks',      icon: '✓', label: 'Tasks'      },
   { href: '/notes',      icon: '✎', label: 'Notes'      },
