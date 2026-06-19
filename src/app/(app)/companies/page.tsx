@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { INDUSTRY_OPTIONS, joinIndustryValue } from '@/lib/industry-options';
+import { INDUSTRY_OPTIONS } from '@/lib/industry-options';
 
 function industryDisplay(value: string | null): string {
   const raw = (value || '').trim();
@@ -42,8 +42,7 @@ export default function CompaniesPage() {
   const [rows, setRows] = useState<CompanyRow[]>([]);
   const [query, setQuery] = useState('');
   const [name, setName] = useState('');
-  const [industryPrimary, setIndustryPrimary] = useState('');
-  const [industrySecondary, setIndustrySecondary] = useState('');
+  const [industry, setIndustry] = useState('');
   const [country, setCountry] = useState('');
   const [website, setWebsite] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
@@ -103,7 +102,7 @@ export default function CompaniesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          industry: joinIndustryValue(industryPrimary, industrySecondary) || null,
+          industry: industry.trim() || null,
           country: country.trim() || null,
           website: website.trim() || null,
           linkedin_url: linkedinUrl.trim() || null,
@@ -116,8 +115,7 @@ export default function CompaniesPage() {
       }
 
       setName('');
-      setIndustryPrimary('');
-      setIndustrySecondary('');
+      setIndustry('');
       setCountry('');
       setWebsite('');
       setLinkedinUrl('');
@@ -161,21 +159,11 @@ export default function CompaniesPage() {
             className="add-company-input add-company-name border border-slate-300 text-sm"
           />
           <select
-            value={industryPrimary}
-            onChange={(e) => setIndustryPrimary(e.target.value)}
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
             className="add-company-input add-company-industry border border-slate-300 text-sm"
           >
-            <option value="">Select industry (primary)</option>
-            {industryOptions.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-          <select
-            value={industrySecondary}
-            onChange={(e) => setIndustrySecondary(e.target.value)}
-            className="add-company-input add-company-industry border border-slate-300 text-sm"
-          >
-            <option value="">Select industry (secondary)</option>
+            <option value="">Select industry</option>
             {industryOptions.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
