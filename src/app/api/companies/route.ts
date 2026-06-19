@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { hasTable, isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
+import { isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
 import type { Company } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -18,24 +18,10 @@ export async function GET(req: NextRequest) {
   const params: (string | number)[] = [];
 
   if (isPostgresDb()) {
-    // Bootstrap companies from legacy leads only when that table exists.
-    if (await hasTable('leads')) {
-      await runStatement(`
-        INSERT INTO companies (name, status)
-        SELECT DISTINCT l.company_name, 'Prospect'::crm_company_status
-        FROM leads l
-        WHERE l.company_name IS NOT NULL
-          AND TRIM(l.company_name) <> ''
-          AND NOT EXISTS (
-            SELECT 1 FROM companies c WHERE lower(c.name) = lower(l.company_name)
-          )
-      `);
-    }
-
     sql = `
       SELECT c.*, COUNT(ct.id) AS lead_count
       FROM companies c
-      LEFT JOIN contacts ct ON ct.company_id = c.id
+      INNER JOIN contacts ct ON ct.company_id = c.id
       WHERE 1=1
     `;
 
