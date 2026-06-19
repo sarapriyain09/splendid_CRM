@@ -213,22 +213,14 @@ export default function CompaniesPage() {
       <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
         {loadError ? <div className="px-4 py-3 text-sm text-red-600 border-b border-slate-200">{loadError}</div> : null}
         <table className="w-full table-fixed text-xs md:text-sm">
-          <colgroup>
-            <col className="w-[22%]" />
-            <col className="w-[16%]" />
-            <col className="w-[16%]" />
-            <col className="w-[22%]" />
-            <col className="w-[14%]" />
-            <col className="w-[10%]" />
-          </colgroup>
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
             <tr>
-              <th className="text-left px-2 md:px-3 py-2">Name</th>
-              <th className="text-left px-2 md:px-3 py-2">Industry</th>
-              <th className="text-left px-2 md:px-3 py-2">Country</th>
-              <th className="text-left px-2 md:px-3 py-2">Website</th>
-              <th className="text-left px-2 md:px-3 py-2">Contacts/Leads</th>
-              <th className="text-left px-2 md:px-3 py-2">Status</th>
+              <th className="w-[28%] text-left px-2 md:px-3 py-2">Name</th>
+              <th className="w-[16%] text-left px-2 md:px-3 py-2">Industry</th>
+              <th className="w-[18%] text-left px-2 md:px-3 py-2">Country</th>
+              <th className="w-[24%] text-left px-2 md:px-3 py-2">Website</th>
+              <th className="w-[14%] text-left px-2 md:px-3 py-2 whitespace-nowrap">Contacts/Leads</th>
+              <th className="hidden 2xl:table-cell w-[10%] text-left px-2 md:px-3 py-2">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -243,7 +235,7 @@ export default function CompaniesPage() {
                 <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={row.country ?? '-'}>{row.country ?? '-'}</td>
                 <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={row.website ?? '-'}>{row.website ?? '-'}</td>
                 <td className="px-2 md:px-3 py-2 text-slate-700">{row.lead_count ?? 0}</td>
-                <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={row.status}>{row.status}</td>
+                <td className="hidden 2xl:table-cell px-2 md:px-3 py-2 text-slate-700 truncate" title={row.status}>{row.status}</td>
               </tr>
             ))}
             {visible.length === 0 && (
