@@ -75,6 +75,20 @@ export default function CompanyDetailPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
 
+  // AI research assistant state.
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [aiWebSearch, setAiWebSearch] = useState(false);
+  const [aiFields, setAiFields] = useState<{
+    website?: string | null;
+    industry?: string | null;
+    country?: string | null;
+    linkedin_url?: string | null;
+    description?: string | null;
+  } | null>(null);
+
   useEffect(() => {
     if (!id) {
       setPageError('Missing account id in route.');
@@ -156,6 +170,52 @@ export default function CompanyDetailPage() {
       setError(payload?.error || 'Failed to delete company');
     }
   };
+
+  const runResearch = async () => {
+    if (!name.trim() && !aiQuestion.trim()) {
+      setAiError('Enter a company name or a question first.');
+      return;
+    }
+    setAiLoading(true);
+    setAiError(null);
+    setAiAnswer(null);
+    setAiFields(null);
+    try {
+      const res = await fetch('/api/ai/company-research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          website: website.trim() || undefined,
+          country: country.trim() || undefined,
+          question: aiQuestion.trim() || undefined,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Research failed.');
+      }
+      setAiAnswer(payload.answer ?? null);
+      setAiFields(payload.fields ?? null);
+      setAiWebSearch(Boolean(payload.usedWebSearch));
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'Research failed.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const applyAllSuggestions = () => {
+    if (!aiFields) return;
+    if (aiFields.website) setWebsite(aiFields.website);
+    if (aiFields.industry) setIndustry(aiFields.industry);
+    if (aiFields.country) setCountry(aiFields.country);
+    if (aiFields.linkedin_url) setLinkedinUrl(aiFields.linkedin_url);
+  };
+
+  const hasSuggestions = Boolean(
+    aiFields && (aiFields.website || aiFields.industry || aiFields.country || aiFields.linkedin_url)
+  );
 
   if (pageError) {
     return <div className="text-red-600">{pageError}</div>;
@@ -239,6 +299,75 @@ export default function CompanyDetailPage() {
           {success ? <span className="text-sm text-emerald-700">{success}</span> : null}
           {error ? <span className="text-sm text-red-600">{error}</span> : null}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h2 className="text-sm font-semibold text-indigo-900">AI Research Assistant</h2>
+          <span className="text-[11px] text-indigo-500">Searches the web to fill in company details</span>
+        </div>
+        <p className="text-xs text-slate-600 mb-3">
+          Ask anything about <span className="font-medium">{name || 'this company'}</span> — e.g. &quot;Find their website, LinkedIn and industry&quot; — and apply the results to the form above.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            value={aiQuestion}
+            onChange={(e) => setAiQuestion(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !aiLoading) runResearch(); }}
+            placeholder="Ask anything (optional) — leave blank to auto-research this company"
+            className="flex-1 border border-indigo-300 rounded-lg px-3 py-2 text-sm bg-white"
+          />
+          <button
+            onClick={runResearch}
+            disabled={aiLoading}
+            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-500 disabled:opacity-60"
+          >
+            {aiLoading ? 'Researching...' : 'Research'}
+          </button>
+        </div>
+        {aiError ? <div className="mt-2 text-sm text-red-600">{aiError}</div> : null}
+        {aiAnswer ? (
+          <div className="mt-3 rounded-lg border border-indigo-100 bg-white p-3">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="text-xs font-semibold text-slate-700">Answer</span>
+              <span className="text-[11px] text-slate-400">{aiWebSearch ? 'Web search' : 'From general knowledge'}</span>
+            </div>
+            <p className="text-sm text-slate-700 whitespace-pre-wrap">{aiAnswer}</p>
+            {aiFields?.description ? (
+              <p className="text-xs text-slate-500 mt-2 italic">{aiFields.description}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {hasSuggestions ? (
+          <div className="mt-3 rounded-lg border border-indigo-100 bg-white p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-slate-700">Suggested values</span>
+              <button
+                onClick={applyAllSuggestions}
+                className="text-xs font-medium text-indigo-700 hover:text-indigo-600"
+              >
+                Apply all
+              </button>
+            </div>
+            {([
+              ['Website', aiFields?.website, () => aiFields?.website && setWebsite(aiFields.website!)],
+              ['Industry', aiFields?.industry, () => aiFields?.industry && setIndustry(aiFields.industry!)],
+              ['Country', aiFields?.country, () => aiFields?.country && setCountry(aiFields.country!)],
+              ['LinkedIn', aiFields?.linkedin_url, () => aiFields?.linkedin_url && setLinkedinUrl(aiFields.linkedin_url!)],
+            ] as Array<[string, string | null | undefined, () => void]>).map(([label, value, apply]) =>
+              value ? (
+                <div key={label} className="flex items-center justify-between gap-3 text-sm">
+                  <div className="min-w-0">
+                    <span className="text-slate-500">{label}:</span>{' '}
+                    <span className="text-slate-800 break-all">{value}</span>
+                  </div>
+                  <button onClick={apply} className="text-xs text-indigo-700 hover:text-indigo-600 flex-shrink-0">Apply</button>
+                </div>
+              ) : null
+            )}
+            <p className="text-[11px] text-slate-400 pt-1">Review suggestions, then click Save Company to persist.</p>
+          </div>
+        ) : null}
       </div>
 
       <div className="border-b border-slate-200 overflow-x-auto">
