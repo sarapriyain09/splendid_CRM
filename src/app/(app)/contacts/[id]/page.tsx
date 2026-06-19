@@ -31,7 +31,7 @@ type ContactDetailResponse = {
     email?: string | null;
     phone?: string | null;
   };
-  tabs?: Partial<Record<TabKey, unknown[]>>;
+  tabs?: Partial<Record<TabKey, Record<string, unknown>[]>>;
   error?: string;
 };
 
