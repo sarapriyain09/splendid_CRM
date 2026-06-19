@@ -146,19 +146,19 @@ export default function CompaniesPage() {
         />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="add-company-container rounded-xl border border-slate-200 bg-white p-3 md:p-4">
         <h2 className="text-sm font-semibold text-slate-800 mb-3">Add Company</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="add-company-form">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Company name"
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            className="add-company-input add-company-name border border-slate-300 text-sm"
           />
           <select
             value={industryPrimary}
             onChange={(e) => setIndustryPrimary(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            className="add-company-input add-company-industry border border-slate-300 text-sm"
           >
             <option value="">Select industry (primary)</option>
             {industryOptions.map((item) => (
@@ -168,7 +168,7 @@ export default function CompaniesPage() {
           <select
             value={industrySecondary}
             onChange={(e) => setIndustrySecondary(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            className="add-company-input add-company-industry border border-slate-300 text-sm"
           >
             <option value="">Select industry (secondary)</option>
             {industryOptions.map((item) => (
@@ -178,7 +178,7 @@ export default function CompaniesPage() {
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            className="add-company-input add-company-country border border-slate-300 text-sm"
           >
             <option value="">Select country</option>
             {COUNTRY_OPTIONS.map((item) => (
@@ -189,25 +189,23 @@ export default function CompaniesPage() {
             value={website}
             onChange={(e) => setWebsite(e.target.value)}
             placeholder="Website"
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            className="add-company-input add-company-website border border-slate-300 text-sm"
           />
           <input
             value={linkedinUrl}
             onChange={(e) => setLinkedinUrl(e.target.value)}
             placeholder="LinkedIn URL"
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            className="add-company-input add-company-linkedin border border-slate-300 text-sm"
           />
-        </div>
-        <div className="mt-3 flex items-center gap-3">
           <button
             onClick={addCompany}
             disabled={saving}
-            className="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-60"
+            className="add-company-btn inline-flex items-center justify-center rounded-lg bg-blue-600 text-white px-4 text-sm font-medium hover:bg-blue-500 disabled:opacity-60"
           >
             {saving ? 'Adding...' : 'Add Company'}
           </button>
-          {error ? <span className="text-sm text-red-600">{error}</span> : null}
         </div>
+        {error ? <div className="mt-2 text-sm text-red-600">{error}</div> : null}
       </div>
 
       <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">

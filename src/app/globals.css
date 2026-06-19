@@ -24,6 +24,113 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   scrollbar-width: auto;
   scrollbar-color: #94a3b8 #e2e8f0;
+  overflow-x: hidden;
+}
+
+.main-content {
+  max-width: 100vw;
+}
+
+.add-company-container {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  margin-bottom: 10px;
+}
+
+.add-company-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.add-company-input {
+  height: 36px;
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.add-company-name {
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
+}
+
+.add-company-industry,
+.add-company-website,
+.add-company-linkedin {
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+}
+
+.add-company-country {
+  width: 160px;
+  min-width: 160px;
+  max-width: 160px;
+}
+
+.add-company-btn {
+  width: auto;
+  min-width: 120px;
+  height: 36px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1365px) and (min-width: 768px) {
+  .add-company-container {
+    white-space: normal;
+    overflow-x: hidden;
+  }
+
+  .add-company-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    overflow-x: visible;
+  }
+
+  .add-company-name,
+  .add-company-industry,
+  .add-company-country,
+  .add-company-website,
+  .add-company-linkedin,
+  .add-company-btn {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .add-company-container {
+    white-space: normal;
+    overflow-x: hidden;
+  }
+
+  .add-company-form {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    overflow-x: visible;
+  }
+
+  .add-company-name,
+  .add-company-industry,
+  .add-company-country,
+  .add-company-website,
+  .add-company-linkedin,
+  .add-company-btn {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 .sidebar-scroll {
