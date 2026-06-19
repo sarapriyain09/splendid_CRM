@@ -61,8 +61,9 @@ export default function CompaniesPage() {
         throw new Error((payload as { error?: string })?.error || 'Failed to load accounts');
       }
       setRows(Array.isArray(payload) ? payload : []);
+      setLoadError(null);
     } catch (e) {
-      setRows([]);
+      // Keep the last successful rows instead of blanking the list on transient failures.
       setLoadError(e instanceof Error ? e.message : 'Failed to load accounts');
     }
   };
@@ -70,6 +71,23 @@ export default function CompaniesPage() {
   useEffect(() => {
     loadCompanies();
   }, [query]);
+
+  useEffect(() => {
+    if (rows.length > 0 || query.trim()) return;
+
+    // Fallback fetch with no-store to avoid stale/intermittent cache issues.
+    fetch('/api/companies', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((payload) => {
+        if (Array.isArray(payload) && payload.length > 0) {
+          setRows(payload);
+          setLoadError(null);
+        }
+      })
+      .catch(() => {
+        // Ignore fallback errors; primary loader already surfaces errors.
+      });
+  }, [rows.length, query]);
 
   const addCompany = async () => {
     if (!name.trim()) {
