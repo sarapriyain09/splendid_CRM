@@ -4,10 +4,15 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { INDUSTRY_OPTIONS, joinIndustryValue } from '@/lib/industry-options';
 
-function primaryIndustry(value: string | null): string {
+function industryDisplay(value: string | null): string {
   const raw = (value || '').trim();
   if (!raw) return '-';
-  return raw.split(/\s*\|\s*|\s*,\s*/)[0] || '-';
+  const parts = raw
+    .split(/\s*\|\s*|\s*,\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return '-';
+  return parts.slice(0, 2).join(' / ');
 }
 
 type CompanyRow = {
@@ -229,7 +234,7 @@ export default function CompaniesPage() {
                     {row.name}
                   </Link>
                 </td>
-                <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={primaryIndustry(row.industry)}>{primaryIndustry(row.industry)}</td>
+                <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={industryDisplay(row.industry)}>{industryDisplay(row.industry)}</td>
                 <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={row.country ?? '-'}>{row.country ?? '-'}</td>
                 <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={row.website ?? '-'}>{row.website ?? '-'}</td>
                 <td className="px-2 md:px-3 py-2 text-slate-700">{row.lead_count ?? 0}</td>
