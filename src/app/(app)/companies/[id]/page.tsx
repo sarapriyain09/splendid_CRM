@@ -52,6 +52,13 @@ const COUNTRY_OPTIONS = [
   'Other',
 ] as const;
 
+function buildIndustryOptions(current: string): string[] {
+  const set = new Set<string>(INDUSTRY_OPTIONS);
+  const value = current.trim();
+  if (value) set.add(value);
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+
 function toDisplayValue(value: unknown): string {
   if (value === null || value === undefined || value === '') return '-';
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -143,6 +150,7 @@ export default function CompanyDetailPage() {
     if (!data?.tabs) return [];
     return Array.isArray(data.tabs[active]) ? data.tabs[active] : [];
   }, [data, active]);
+  const industryOptions = useMemo(() => buildIndustryOptions(industry), [industry]);
 
   if (pageError) {
     return <div className="text-red-600">{pageError}</div>;
@@ -174,7 +182,7 @@ export default function CompanyDetailPage() {
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
           >
             <option value="">Select industry</option>
-            {INDUSTRY_OPTIONS.map((item) => (
+            {industryOptions.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
           </select>

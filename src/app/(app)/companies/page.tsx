@@ -13,7 +13,7 @@ type CompanyRow = {
   lead_count?: number;
 };
 
-const INDUSTRY_OPTIONS = [
+const DEFAULT_INDUSTRY_OPTIONS = [
   'Engineering',
   'Manufacturing',
   'Information Technology',
@@ -129,6 +129,14 @@ export default function CompaniesPage() {
   };
 
   const visible = useMemo(() => rows.slice(0, 250), [rows]);
+  const industryOptions = useMemo(() => {
+    const set = new Set<string>(DEFAULT_INDUSTRY_OPTIONS);
+    rows.forEach((row) => {
+      const value = (row.industry || '').trim();
+      if (value) set.add(value);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [rows]);
 
   return (
     <div className="space-y-5">
@@ -157,7 +165,7 @@ export default function CompaniesPage() {
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
           >
             <option value="">Select industry</option>
-            {INDUSTRY_OPTIONS.map((item) => (
+            {industryOptions.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
           </select>
