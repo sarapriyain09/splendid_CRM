@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { INDUSTRY_OPTIONS, joinIndustryValue } from '@/lib/industry-options';
 
+function primaryIndustry(value: string | null): string {
+  const raw = (value || '').trim();
+  if (!raw) return '-';
+  return raw.split(/\s*\|\s*|\s*,\s*/)[0] || '-';
+}
+
 type CompanyRow = {
   id: number;
   name: string;
@@ -225,7 +231,7 @@ export default function CompaniesPage() {
                     {row.name}
                   </Link>
                 </td>
-                <td className="px-4 py-2 text-slate-700">{row.industry ?? '-'}</td>
+                <td className="px-4 py-2 text-slate-700">{primaryIndustry(row.industry)}</td>
                 <td className="px-4 py-2 text-slate-700">{row.country ?? '-'}</td>
                 <td className="px-4 py-2 text-slate-700">{row.website ?? '-'}</td>
                 <td className="px-4 py-2 text-slate-700">{row.lead_count ?? 0}</td>
