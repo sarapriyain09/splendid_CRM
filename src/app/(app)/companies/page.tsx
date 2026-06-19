@@ -148,7 +148,7 @@ export default function CompaniesPage() {
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="text-sm font-semibold text-slate-800 mb-3">Add Company</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -212,7 +212,7 @@ export default function CompaniesPage() {
 
       <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
         {loadError ? <div className="px-4 py-3 text-sm text-red-600 border-b border-slate-200">{loadError}</div> : null}
-        <table className="min-w-[980px] text-sm">
+        <table className="w-full table-fixed text-sm">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
             <tr>
               <th className="text-left px-4 py-2">Name</th>
@@ -227,15 +227,15 @@ export default function CompaniesPage() {
             {visible.map((row) => (
               <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <Link href={`/companies/${row.id}`} className="text-blue-700 hover:text-blue-600 font-medium">
+                  <Link href={`/companies/${row.id}`} className="block truncate text-blue-700 hover:text-blue-600 font-medium" title={row.name}>
                     {row.name}
                   </Link>
                 </td>
                 <td className="px-4 py-2 text-slate-700">{primaryIndustry(row.industry)}</td>
                 <td className="px-4 py-2 text-slate-700">{row.country ?? '-'}</td>
-                <td className="px-4 py-2 text-slate-700">{row.website ?? '-'}</td>
+                <td className="px-4 py-2 text-slate-700 truncate" title={row.website ?? '-'}>{row.website ?? '-'}</td>
                 <td className="px-4 py-2 text-slate-700">{row.lead_count ?? 0}</td>
-                <td className="px-4 py-2 text-slate-700">{row.status}</td>
+                <td className="px-4 py-2 text-slate-700 truncate" title={row.status}>{row.status}</td>
               </tr>
             ))}
             {visible.length === 0 && (
