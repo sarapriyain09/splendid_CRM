@@ -18,6 +18,32 @@ export async function GET(req: NextRequest) {
   const params: (string | number)[] = [];
 
   if (isPostgresDb()) {
+    // Keep key profile fields populated for legacy rows.
+    await runStatement(`
+      UPDATE companies
+      SET industry = 'General'
+      WHERE industry IS NULL OR TRIM(industry) = ''
+    `);
+    await runStatement(`
+      UPDATE companies
+      SET country = 'United Kingdom'
+      WHERE country IS NULL OR TRIM(country) = ''
+    `);
+    await runStatement(`
+      UPDATE companies c
+      SET website = src.website
+      FROM (
+        SELECT company_id, MAX(NULLIF(TRIM(website), '')) AS website
+        FROM contacts
+        WHERE company_id IS NOT NULL
+          AND website IS NOT NULL
+          AND TRIM(website) <> ''
+        GROUP BY company_id
+      ) src
+      WHERE c.id = src.company_id
+        AND (c.website IS NULL OR TRIM(c.website) = '')
+    `);
+
     sql = `
       SELECT c.*, COUNT(ct.id) AS lead_count
       FROM companies c
@@ -88,7 +114,8 @@ export async function POST(req: NextRequest) {
   }
 
   const name = body.name.trim();
-  const country = body.country?.trim() || null;
+  const country = body.country?.trim() || 'United Kingdom';
+  const industry = body.industry?.trim() || 'General';
   const description = (body as { description?: string }).description;
 
   const existing = await queryOne('SELECT * FROM companies WHERE name = ? AND COALESCE(country, "") = COALESCE(?, "")', [name, country]);
@@ -98,7 +125,7 @@ export async function POST(req: NextRequest) {
     name,
     body.website ?? null,
     (body as { linkedin_url?: string }).linkedin_url ?? null,
-    body.industry ?? null,
+    industry,
     country,
     body.employee_count ?? null,
     body.status ?? (isPostgresDb() ? 'Prospect' : 'prospect'),
