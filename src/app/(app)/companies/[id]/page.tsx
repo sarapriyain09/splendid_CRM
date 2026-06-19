@@ -1,5 +1,6 @@
 'use client';
 
+import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 type TabKey =
@@ -25,7 +26,9 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'callHistory', label: 'Call History (Read-only)' },
 ];
 
-export default function CompanyDetailPage({ params }: { params: { id: string } }) {
+export default function CompanyDetailPage() {
+  const params = useParams<{ id?: string | string[] }>();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const [active, setActive] = useState<TabKey>('contacts');
   const [data, setData] = useState<any>(null);
   const [name, setName] = useState('');
@@ -37,25 +40,45 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/companies/${params.id}`).then((r) => r.json()).then((payload) => {
-      setData(payload);
-      setName(payload?.company?.name ?? '');
-      setIndustry(payload?.company?.industry ?? '');
-      setCountry(payload?.company?.country ?? '');
-      setWebsite(payload?.company?.website ?? '');
-      setLinkedinUrl(payload?.company?.linkedin_url ?? '');
-      setStatus(payload?.company?.status ?? 'Prospect');
-    });
-  }, [params.id]);
+    if (!id) {
+      setPageError('Missing account id in route.');
+      return;
+    }
+
+    setPageError(null);
+    fetch(`/api/companies/${id}`)
+      .then(async (r) => {
+        const payload = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          throw new Error((payload as { error?: string })?.error || 'Failed to load account');
+        }
+        return payload;
+      })
+      .then((payload) => {
+        setData(payload);
+        setName(payload?.company?.name ?? '');
+        setIndustry(payload?.company?.industry ?? '');
+        setCountry(payload?.company?.country ?? '');
+        setWebsite(payload?.company?.website ?? '');
+        setLinkedinUrl(payload?.company?.linkedin_url ?? '');
+        setStatus(payload?.company?.status ?? 'Prospect');
+      })
+      .catch((e) => {
+        setPageError(e instanceof Error ? e.message : 'Failed to load account');
+      });
+  }, [id]);
 
   const saveCompany = async () => {
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      const response = await fetch(`/api/companies/${params.id}`, {
+      if (!id) throw new Error('Missing account id in route.');
+
+      const response = await fetch(`/api/companies/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -87,8 +110,12 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
     return Array.isArray(data.tabs[active]) ? data.tabs[active] : [];
   }, [data, active]);
 
+  if (pageError) {
+    return <div className="text-red-600">{pageError}</div>;
+  }
+
   if (!data?.company) {
-    return <div className="text-slate-600">Loading company...</div>;
+    return <div className="text-slate-600">Loading account...</div>;
   }
 
   return (
