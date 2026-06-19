@@ -1,5 +1,6 @@
 'use client';
 
+import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 type TabKey =
@@ -23,18 +24,65 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'callHistory', label: 'Call History (Read-only)' },
 ];
 
-export default function ContactDetailPage({ params }: { params: { id: string } }) {
+type ContactDetailResponse = {
+  contact?: {
+    id: number;
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
+  tabs?: Partial<Record<TabKey, unknown[]>>;
+  error?: string;
+};
+
+export default function ContactDetailPage() {
+  const params = useParams<{ id?: string | string[] }>();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const [active, setActive] = useState<TabKey>('activities');
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ContactDetailResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/contacts/${params.id}`).then((r) => r.json()).then(setData);
-  }, [params.id]);
+    if (!id) return;
+
+    let cancelled = false;
+
+    const loadContact = async () => {
+      try {
+        setError(null);
+        const response = await fetch(`/api/contacts/${id}`);
+        const payload = (await response.json()) as ContactDetailResponse;
+
+        if (!response.ok) {
+          throw new Error(payload.error || 'Failed to load contact');
+        }
+
+        if (!cancelled) {
+          setData(payload);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setData(null);
+          setError(err instanceof Error ? err.message : 'Failed to load contact');
+        }
+      }
+    };
+
+    loadContact();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const rows = useMemo(() => {
     if (!data?.tabs) return [];
     return Array.isArray(data.tabs[active]) ? data.tabs[active] : [];
   }, [data, active]);
+
+  if (error) {
+    return <div className="text-red-600">{error}</div>;
+  }
 
   if (!data?.contact) {
     return <div className="text-slate-600">Loading contact...</div>;
