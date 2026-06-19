@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type TabKey =
   | 'activities'
@@ -27,6 +27,8 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 type ContactDetailResponse = {
   contact?: {
     id: number;
+    lead_id?: number | null;
+    company_id?: number | null;
     name?: string | null;
     email?: string | null;
     phone?: string | null;
@@ -45,45 +47,71 @@ export default function ContactDetailPage() {
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const [active, setActive] = useState<TabKey>('activities');
   const [data, setData] = useState<ContactDetailResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
   const [status, setStatus] = useState('Pending');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [activityType, setActivityType] = useState('connection_sent');
+  const [activityNotes, setActivityNotes] = useState('');
+  const [addingActivity, setAddingActivity] = useState(false);
+
+  const [taskSubject, setTaskSubject] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskPriority, setTaskPriority] = useState('Medium');
+  const [taskDueDate, setTaskDueDate] = useState('');
+  const [addingTask, setAddingTask] = useState(false);
+
+  const [noteContent, setNoteContent] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
+
+  const [documentTitle, setDocumentTitle] = useState('');
+  const [documentFileName, setDocumentFileName] = useState('');
+  const [documentFileType, setDocumentFileType] = useState('pdf');
+  const [documentFileUrl, setDocumentFileUrl] = useState('');
+  const [addingDocument, setAddingDocument] = useState(false);
+
+  const loadContact = useCallback(async () => {
+    if (!id) return;
+
+    const response = await fetch(`/api/contacts/${id}`);
+    const payload = (await response.json()) as ContactDetailResponse;
+
+    if (!response.ok) {
+      throw new Error(payload.error || 'Failed to load contact');
+    }
+
+    setData(payload);
+    setStatus(payload.contact?.status ?? 'Pending');
+    setLinkedinUrl(payload.contact?.linkedin_url ?? payload.contact?.linkedin ?? '');
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
 
     let cancelled = false;
 
-    const loadContact = async () => {
+    const load = async () => {
       try {
-        setError(null);
-        const response = await fetch(`/api/contacts/${id}`);
-        const payload = (await response.json()) as ContactDetailResponse;
-
-        if (!response.ok) {
-          throw new Error(payload.error || 'Failed to load contact');
-        }
-
-        if (!cancelled) {
-          setData(payload);
-          setStatus(payload.contact?.status ?? 'Pending');
-          setLinkedinUrl(payload.contact?.linkedin_url ?? payload.contact?.linkedin ?? '');
-        }
+        setPageError(null);
+        await loadContact();
       } catch (err) {
         if (!cancelled) {
           setData(null);
-          setError(err instanceof Error ? err.message : 'Failed to load contact');
+          setPageError(err instanceof Error ? err.message : 'Failed to load contact');
         }
       }
     };
 
-    loadContact();
+    load();
 
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, loadContact]);
 
   const rows = useMemo(() => {
     if (!data?.tabs) return [];
@@ -94,7 +122,8 @@ export default function ContactDetailPage() {
     if (!id || !data?.contact?.id) return;
 
     setSaving(true);
-    setError(null);
+    setActionError(null);
+    setActionSuccess(null);
 
     try {
       const response = await fetch(`/api/contacts/${id}`, {
@@ -124,15 +153,165 @@ export default function ContactDetailPage() {
           },
         };
       });
+      setActionSuccess('LinkedIn status/profile updated.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update contact');
+      setActionError(err instanceof Error ? err.message : 'Failed to update contact');
     } finally {
       setSaving(false);
     }
   };
 
-  if (error) {
-    return <div className="text-red-600">{error}</div>;
+  const addActivity = async () => {
+    if (!data?.contact?.id) return;
+    setAddingActivity(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      const response = await fetch('/api/activities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contact_id: data.contact.id,
+          lead_id: data.contact.lead_id ?? null,
+          activity_type: activityType,
+          notes: activityNotes.trim() || null,
+        }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || 'Failed to add activity');
+
+      setActivityNotes('');
+      await loadContact();
+      setActionSuccess('Activity added.');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to add activity');
+    } finally {
+      setAddingActivity(false);
+    }
+  };
+
+  const addTask = async () => {
+    if (!data?.contact?.id) return;
+    if (!taskSubject.trim()) {
+      setActionError('Task subject is required.');
+      return;
+    }
+    if (!data.contact.lead_id) {
+      setActionError('This contact has no linked lead, so tasks cannot be attached from this page.');
+      return;
+    }
+
+    setAddingTask(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead_id: data.contact.lead_id,
+          subject: taskSubject.trim(),
+          description: taskDescription.trim() || null,
+          priority: taskPriority,
+          due_date: taskDueDate || null,
+          status: 'Open',
+        }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || 'Failed to add task');
+
+      setTaskSubject('');
+      setTaskDescription('');
+      setTaskPriority('Medium');
+      setTaskDueDate('');
+      await loadContact();
+      setActionSuccess('Task added.');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to add task');
+    } finally {
+      setAddingTask(false);
+    }
+  };
+
+  const addNote = async () => {
+    if (!data?.contact?.id) return;
+    if (!noteContent.trim()) {
+      setActionError('Note content is required.');
+      return;
+    }
+
+    setAddingNote(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      const response = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: noteContent.trim(),
+          contact_id: data.contact.id,
+          company_id: data.contact.company_id ?? null,
+          lead_id: data.contact.lead_id ?? null,
+        }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || 'Failed to add note');
+
+      setNoteContent('');
+      await loadContact();
+      setActionSuccess('Note added.');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to add note');
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
+  const addDocument = async () => {
+    if (!data?.contact?.id) return;
+    if (!documentTitle.trim() || !documentFileName.trim()) {
+      setActionError('Document title and file name are required.');
+      return;
+    }
+
+    setAddingDocument(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      const response = await fetch('/api/documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: documentTitle.trim(),
+          file_name: documentFileName.trim(),
+          file_type: documentFileType,
+          file_url: documentFileUrl.trim() || null,
+          contact_id: data.contact.id,
+          company_id: data.contact.company_id ?? null,
+        }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || 'Failed to add document');
+
+      setDocumentTitle('');
+      setDocumentFileName('');
+      setDocumentFileType('pdf');
+      setDocumentFileUrl('');
+      await loadContact();
+      setActionSuccess('Document added.');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to add document');
+    } finally {
+      setAddingDocument(false);
+    }
+  };
+
+  if (pageError) {
+    return <div className="text-red-600">{pageError}</div>;
   }
 
   if (!data?.contact) {
@@ -187,6 +366,8 @@ export default function ContactDetailPage() {
             </a>
           ) : null}
         </div>
+        {actionError ? <p className="mt-3 text-sm text-red-600">{actionError}</p> : null}
+        {actionSuccess ? <p className="mt-3 text-sm text-emerald-700">{actionSuccess}</p> : null}
       </div>
 
       <div className="border-b border-slate-200 overflow-x-auto">
@@ -202,6 +383,145 @@ export default function ContactDetailPage() {
           ))}
         </div>
       </div>
+
+      {active === 'activities' ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-800">Add Activity</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <select
+              value={activityType}
+              onChange={(e) => setActivityType(e.target.value)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="connection_sent">Connection Sent</option>
+              <option value="accepted">Accepted</option>
+              <option value="message_sent">Message Sent</option>
+              <option value="replied">Replied</option>
+              <option value="meeting_booked">Meeting Booked</option>
+              <option value="call">Call</option>
+              <option value="email">Email</option>
+            </select>
+            <input
+              value={activityNotes}
+              onChange={(e) => setActivityNotes(e.target.value)}
+              placeholder="Optional notes"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm md:col-span-2"
+            />
+          </div>
+          <button
+            onClick={addActivity}
+            disabled={addingActivity}
+            className="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-60"
+          >
+            {addingActivity ? 'Adding...' : 'Add Activity'}
+          </button>
+        </div>
+      ) : null}
+
+      {active === 'tasks' ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-800">Add Task</h3>
+          <input
+            value={taskSubject}
+            onChange={(e) => setTaskSubject(e.target.value)}
+            placeholder="Task subject"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <select
+              value={taskPriority}
+              onChange={(e) => setTaskPriority(e.target.value)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+            <input
+              type="date"
+              value={taskDueDate}
+              onChange={(e) => setTaskDueDate(e.target.value)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            <input
+              value={taskDescription}
+              onChange={(e) => setTaskDescription(e.target.value)}
+              placeholder="Description (optional)"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <button
+            onClick={addTask}
+            disabled={addingTask}
+            className="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-60"
+          >
+            {addingTask ? 'Adding...' : 'Add Task'}
+          </button>
+        </div>
+      ) : null}
+
+      {active === 'notes' ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-800">Add Note</h3>
+          <textarea
+            value={noteContent}
+            onChange={(e) => setNoteContent(e.target.value)}
+            placeholder="Write note"
+            rows={4}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+          <button
+            onClick={addNote}
+            disabled={addingNote}
+            className="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-60"
+          >
+            {addingNote ? 'Adding...' : 'Add Note'}
+          </button>
+        </div>
+      ) : null}
+
+      {active === 'documents' ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-800">Add Document</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input
+              value={documentTitle}
+              onChange={(e) => setDocumentTitle(e.target.value)}
+              placeholder="Title"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            <input
+              value={documentFileName}
+              onChange={(e) => setDocumentFileName(e.target.value)}
+              placeholder="File name"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            <select
+              value={documentFileType}
+              onChange={(e) => setDocumentFileType(e.target.value)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="pdf">PDF</option>
+              <option value="docx">DOCX</option>
+              <option value="xlsx">XLSX</option>
+              <option value="image">Image</option>
+            </select>
+            <input
+              value={documentFileUrl}
+              onChange={(e) => setDocumentFileUrl(e.target.value)}
+              placeholder="File URL (optional)"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <button
+            onClick={addDocument}
+            disabled={addingDocument}
+            className="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-60"
+          >
+            {addingDocument ? 'Adding...' : 'Add Document'}
+          </button>
+        </div>
+      ) : null}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         {rows.length === 0 ? (
