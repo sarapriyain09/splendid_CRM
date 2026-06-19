@@ -26,6 +26,32 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'callHistory', label: 'Call History (Read-only)' },
 ];
 
+const INDUSTRY_OPTIONS = [
+  'Engineering',
+  'Manufacturing',
+  'Information Technology',
+  'Construction',
+  'Retail',
+  'Healthcare',
+  'Finance',
+  'Education',
+  'Logistics',
+  'Other',
+] as const;
+
+const COUNTRY_OPTIONS = [
+  'United Kingdom',
+  'United States',
+  'India',
+  'United Arab Emirates',
+  'Germany',
+  'France',
+  'Netherlands',
+  'Canada',
+  'Australia',
+  'Other',
+] as const;
+
 export default function CompanyDetailPage() {
   const params = useParams<{ id?: string | string[] }>();
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
@@ -134,18 +160,26 @@ export default function CompanyDetailPage() {
             placeholder="Company name"
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
           />
-          <input
+          <select
             value={industry}
             onChange={(e) => setIndustry(e.target.value)}
-            placeholder="Industry"
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
-          />
-          <input
+          >
+            <option value="">Select industry</option>
+            {INDUSTRY_OPTIONS.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+          <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            placeholder="Country"
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
-          />
+          >
+            <option value="">Select country</option>
+            {COUNTRY_OPTIONS.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
           <input
             value={website}
             onChange={(e) => setWebsite(e.target.value)}
