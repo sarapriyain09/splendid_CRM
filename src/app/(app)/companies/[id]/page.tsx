@@ -52,6 +52,14 @@ const COUNTRY_OPTIONS = [
   'Other',
 ] as const;
 
+function toDisplayValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
 export default function CompanyDetailPage() {
   const params = useParams<{ id?: string | string[] }>();
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
@@ -230,12 +238,40 @@ export default function CompanyDetailPage() {
         {rows.length === 0 ? (
           <p className="text-sm text-slate-500">No records in this tab.</p>
         ) : (
-          <div className="space-y-2">
-            {rows.map((row: Record<string, unknown>, idx: number) => (
-              <div key={String(row.id ?? idx)} className="border border-slate-100 rounded-lg p-3 bg-slate-50 text-sm">
-                <pre className="whitespace-pre-wrap text-slate-700">{JSON.stringify(row, null, 2)}</pre>
-              </div>
-            ))}
+          <div className="space-y-3">
+            {rows.map((row: Record<string, unknown>, idx: number) => {
+              if (active === 'contacts') {
+                const contactName = toDisplayValue(row.name);
+                const email = toDisplayValue(row.email);
+                const phone = toDisplayValue(row.phone);
+                const jobTitle = toDisplayValue(row.job_title);
+                const createdAt = toDisplayValue(row.created_at);
+                return (
+                  <div key={String(row.id ?? idx)} className="border border-slate-200 rounded-lg p-3 bg-white text-sm">
+                    <div className="font-semibold text-slate-900">{contactName}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 text-slate-700">
+                      <div><span className="text-slate-500">Email:</span> {email}</div>
+                      <div><span className="text-slate-500">Phone:</span> {phone}</div>
+                      <div><span className="text-slate-500">Job Title:</span> {jobTitle}</div>
+                      <div><span className="text-slate-500">Created:</span> {createdAt}</div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={String(row.id ?? idx)} className="border border-slate-200 rounded-lg p-3 bg-white text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {Object.entries(row).map(([key, value]) => (
+                      <div key={key}>
+                        <span className="text-slate-500">{key.replace(/_/g, ' ')}:</span>{' '}
+                        <span className="text-slate-800">{toDisplayValue(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
