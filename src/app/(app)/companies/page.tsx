@@ -148,7 +148,7 @@ export default function CompaniesPage() {
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="text-sm font-semibold text-slate-800 mb-3">Add Company</h2>
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -210,9 +210,9 @@ export default function CompaniesPage() {
         </div>
       </div>
 
-      <div className="overflow-x-scroll border border-slate-200 rounded-xl bg-white">
+      <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
         {loadError ? <div className="px-4 py-3 text-sm text-red-600 border-b border-slate-200">{loadError}</div> : null}
-        <table className="min-w-full text-sm">
+        <table className="min-w-[980px] text-sm">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
             <tr>
               <th className="text-left px-4 py-2">Name</th>
