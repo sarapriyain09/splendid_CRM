@@ -197,31 +197,24 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = (await req.json()) as Record<string, unknown>;
 
-  if (isPostgresDb() && typeof body.status === 'string') {
-    // Ensure enum-compatible assignment for PostgreSQL company status.
-    await runStatement(
-      `UPDATE companies
-       SET status = ?::crm_company_status, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [body.status, id]
-    );
-
-    const company = await queryOne('SELECT * FROM companies WHERE id = ?', [id]);
-    if (!company) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(company);
-  }
-
+  const postgres = isPostgresDb();
   const fields = Object.keys(body).filter((key) => key !== 'id');
   if (fields.length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
 
-  const setClause = fields.map((field) => `${field} = ?`).join(', ');
+  const setClause = fields
+    .map((field) => {
+      // Cast status to the enum type on PostgreSQL.
+      if (postgres && field === 'status') return `${field} = ?::crm_company_status`;
+      return `${field} = ?`;
+    })
+    .join(', ');
   const values = fields.map((field) => {
     const value = body[field];
     if (typeof value === 'boolean') return value ? 1 : 0;
     return value as string | number | null;
   });
   await runStatement(
-    isPostgresDb()
+    postgres
       ? `UPDATE companies SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
       : `UPDATE companies SET ${setClause}, updated_at = datetime('now') WHERE id = ?`,
     [...values, id]
