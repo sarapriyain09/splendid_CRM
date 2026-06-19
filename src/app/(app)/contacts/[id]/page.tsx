@@ -66,6 +66,20 @@ export default function ContactDetailPage() {
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // AI research assistant state.
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [aiWebSearch, setAiWebSearch] = useState(false);
+  const [aiFields, setAiFields] = useState<{
+    job_title?: string | null;
+    email?: string | null;
+    linkedin_url?: string | null;
+    company_name?: string | null;
+    description?: string | null;
+  } | null>(null);
+
   const [activityType, setActivityType] = useState('connection_sent');
   const [activityNotes, setActivityNotes] = useState('');
   const [addingActivity, setAddingActivity] = useState(false);
@@ -463,6 +477,108 @@ export default function ContactDetailPage() {
         </div>
         {actionError ? <p className="mt-3 text-sm text-red-600">{actionError}</p> : null}
         {actionSuccess ? <p className="mt-3 text-sm text-emerald-700">{actionSuccess}</p> : null}
+      </div>
+
+      <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h2 className="text-sm font-semibold text-indigo-900">AI Research Assistant</h2>
+          <span className="text-[11px] text-indigo-500">Searches the web to find contact details</span>
+        </div>
+        <p className="text-xs text-slate-600 mb-3">
+          Ask anything about <span className="font-medium">{name || 'this contact'}</span>
+          {companyName ? <> at <span className="font-medium">{companyName}</span></> : null} — e.g. &quot;Find their LinkedIn and job title&quot;.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            value={aiQuestion}
+            onChange={(e) => setAiQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' || aiLoading) return;
+              (async () => {
+                if (!name.trim() && !aiQuestion.trim()) { setAiError('Enter a contact name or a question first.'); return; }
+                setAiLoading(true); setAiError(null); setAiAnswer(null); setAiFields(null);
+                try {
+                  const res = await fetch('/api/ai/company-research', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: 'contact', contactName: name.trim(), name: companyName.trim() || undefined, jobTitle: jobTitle.trim() || undefined, question: aiQuestion.trim() || undefined }),
+                  });
+                  const payload = await res.json().catch(() => ({}));
+                  if (!res.ok) throw new Error(payload?.error || 'Research failed.');
+                  setAiAnswer(payload.answer ?? null); setAiFields(payload.fields ?? null); setAiWebSearch(Boolean(payload.usedWebSearch));
+                } catch (err) { setAiError(err instanceof Error ? err.message : 'Research failed.'); }
+                finally { setAiLoading(false); }
+              })();
+            }}
+            placeholder="Ask anything (optional) — leave blank to auto-research this contact"
+            className="flex-1 border border-indigo-300 rounded-lg px-3 py-2 text-sm bg-white"
+          />
+          <button
+            onClick={async () => {
+              if (!name.trim() && !aiQuestion.trim()) { setAiError('Enter a contact name or a question first.'); return; }
+              setAiLoading(true); setAiError(null); setAiAnswer(null); setAiFields(null);
+              try {
+                const res = await fetch('/api/ai/company-research', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ mode: 'contact', contactName: name.trim(), name: companyName.trim() || undefined, jobTitle: jobTitle.trim() || undefined, question: aiQuestion.trim() || undefined }),
+                });
+                const payload = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(payload?.error || 'Research failed.');
+                setAiAnswer(payload.answer ?? null); setAiFields(payload.fields ?? null); setAiWebSearch(Boolean(payload.usedWebSearch));
+              } catch (err) { setAiError(err instanceof Error ? err.message : 'Research failed.'); }
+              finally { setAiLoading(false); }
+            }}
+            disabled={aiLoading}
+            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-500 disabled:opacity-60"
+          >
+            {aiLoading ? 'Researching...' : 'Research'}
+          </button>
+        </div>
+        {aiError ? <div className="mt-2 text-sm text-red-600">{aiError}</div> : null}
+        {aiAnswer ? (
+          <div className="mt-3 rounded-lg border border-indigo-100 bg-white p-3">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="text-xs font-semibold text-slate-700">Answer</span>
+              <span className="text-[11px] text-slate-400">{aiWebSearch ? 'Web search' : 'From general knowledge'}</span>
+            </div>
+            <p className="text-sm text-slate-700 whitespace-pre-wrap">{aiAnswer}</p>
+            {aiFields?.description ? <p className="text-xs text-slate-500 mt-2 italic">{aiFields.description}</p> : null}
+          </div>
+        ) : null}
+        {aiFields && (aiFields.job_title || aiFields.email || aiFields.linkedin_url || aiFields.company_name) ? (
+          <div className="mt-3 rounded-lg border border-indigo-100 bg-white p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-slate-700">Suggested values</span>
+              <button
+                onClick={() => {
+                  if (aiFields?.job_title) setJobTitle(aiFields.job_title);
+                  if (aiFields?.email) setEmail(aiFields.email);
+                  if (aiFields?.linkedin_url) setLinkedinUrl(aiFields.linkedin_url);
+                  if (aiFields?.company_name) setCompanyName(aiFields.company_name);
+                }}
+                className="text-xs font-medium text-indigo-700 hover:text-indigo-600"
+              >
+                Apply all
+              </button>
+            </div>
+            {([
+              ['Job title', aiFields?.job_title, () => aiFields?.job_title && setJobTitle(aiFields.job_title!)],
+              ['Email', aiFields?.email, () => aiFields?.email && setEmail(aiFields.email!)],
+              ['LinkedIn', aiFields?.linkedin_url, () => aiFields?.linkedin_url && setLinkedinUrl(aiFields.linkedin_url!)],
+              ['Company', aiFields?.company_name, () => aiFields?.company_name && setCompanyName(aiFields.company_name!)],
+            ] as Array<[string, string | null | undefined, () => void]>).map(([label, value, apply]) =>
+              value ? (
+                <div key={label} className="flex items-center justify-between gap-3 text-sm">
+                  <div className="min-w-0">
+                    <span className="text-slate-500">{label}:</span>{' '}
+                    <span className="text-slate-800 break-all">{value}</span>
+                  </div>
+                  <button onClick={apply} className="text-xs text-indigo-700 hover:text-indigo-600 flex-shrink-0">Apply</button>
+                </div>
+              ) : null
+            )}
+            <p className="text-[11px] text-slate-400 pt-1">Review suggestions, then click Save to persist.</p>
+          </div>
+        ) : null}
       </div>
 
       <div className="border-b border-slate-200 overflow-x-auto">

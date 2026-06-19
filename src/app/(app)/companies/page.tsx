@@ -52,6 +52,8 @@ export default function CompaniesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [aiFilling, setAiFilling] = useState(false);
+  const [aiNote, setAiNote] = useState<string | null>(null);
 
   const loadCompanies = async () => {
     const url = query.trim() ? `/api/companies?search=${encodeURIComponent(query.trim())}` : '/api/companies';
@@ -142,6 +144,40 @@ export default function CompaniesPage() {
       alert(payload?.error || 'Failed to delete company');
     }
   };
+
+  const aiFill = async () => {
+    if (!name.trim()) {
+      setError('Enter a company name first, then use AI Fill.');
+      return;
+    }
+    setAiFilling(true);
+    setError(null);
+    setAiNote(null);
+    try {
+      const res = await fetch('/api/ai/company-research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'company', name: name.trim(), website: website.trim() || undefined }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || 'AI Fill failed.');
+      const f = payload.fields || {};
+      if (f.website) setWebsite(f.website);
+      if (f.industry) setIndustry(f.industry);
+      if (f.country) setCountry(f.country);
+      if (f.linkedin_url) setLinkedinUrl(f.linkedin_url);
+      const filled = ['website', 'industry', 'country', 'linkedin_url'].filter((k) => f[k]);
+      setAiNote(
+        filled.length
+          ? `AI filled: ${filled.join(', ')}${payload.usedWebSearch ? '' : ' (from general knowledge)'}. Review, then Add Company.`
+          : 'AI could not find reliable details for this company.'
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'AI Fill failed.');
+    } finally {
+      setAiFilling(false);
+    }
+  };
   const industryOptions = useMemo(() => {
     const set = new Set<string>(INDUSTRY_OPTIONS);
     rows.forEach((row) => {
@@ -211,7 +247,16 @@ export default function CompaniesPage() {
           >
             {saving ? 'Adding...' : 'Add Company'}
           </button>
+          <button
+            onClick={aiFill}
+            disabled={aiFilling}
+            title="Use AI web search to fill industry, country, website and LinkedIn from the company name"
+            className="add-company-btn inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-indigo-50 text-indigo-700 px-4 text-sm font-medium hover:bg-indigo-100 disabled:opacity-60"
+          >
+            {aiFilling ? 'Researching...' : 'AI Fill'}
+          </button>
         </div>
+        {aiNote ? <div className="mt-2 text-sm text-indigo-700">{aiNote}</div> : null}
         {error ? <div className="mt-2 text-sm text-red-600">{error}</div> : null}
       </div>
 
