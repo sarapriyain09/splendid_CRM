@@ -1,118 +1,107 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getDb } from '@/lib/db';
+import { hasTable, queryAll, queryOne, runStatement } from '@/lib/db-client';
 
 type Params = { params: Promise<{ id: string }> };
-
-function hasTable(tableName: string): boolean {
-  const db = getDb();
-  const row = db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
-    .get(tableName) as { name?: string } | undefined;
-  return !!row?.name;
-}
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
   const { id } = await params;
-  const db = getDb();
 
-  const contact = db.prepare(`
+  const contact = await queryOne<{
+    id: number;
+    lead_id: number;
+    company_id: number | null;
+    company_name: string | null;
+  }>(`
     SELECT c.*, l.company_id, l.company_name
     FROM contacts c
     LEFT JOIN leads l ON c.lead_id = l.id
     WHERE c.id = ?
-  `).get(id) as
-    | {
-      id: number;
-      lead_id: number;
-      company_id: number | null;
-      company_name: string | null;
-    }
-    | undefined;
+  `, [id]);
 
   if (!contact) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const activities = db.prepare(`
+  const activities = await queryAll(`
     SELECT id, activity_type, date, notes
     FROM activities
     WHERE contact_id = ?
     ORDER BY date DESC, created_at DESC
     LIMIT 100
-  `).all(contact.id);
+  `, [contact.id]);
 
-  const tasks = db.prepare(`
+  const tasks = await queryAll(`
     SELECT t.id, t.title, t.description, t.priority, t.due_date, t.status, t.done
     FROM tasks t
     WHERE t.lead_id = ?
     ORDER BY t.done ASC, t.due_date ASC, t.created_at DESC
     LIMIT 100
-  `).all(contact.lead_id);
+  `, [contact.lead_id]);
 
-  const notes = db.prepare(`
+  const notes = await queryAll(`
     SELECT n.id, n.content, n.created_at, u.name AS user_name
     FROM notes n
     LEFT JOIN users u ON u.id = n.user_id
     WHERE n.lead_id = ?
     ORDER BY n.created_at DESC
     LIMIT 200
-  `).all(contact.lead_id);
+  `, [contact.lead_id]);
 
-  const documents = hasTable('documents')
-    ? db.prepare(`
+  const documents = (await hasTable('documents'))
+    ? await queryAll(`
       SELECT id, title, file_name, file_type, file_url, created_at
       FROM documents
       WHERE contact_id = ? OR (company_id IS NOT NULL AND company_id = ?)
       ORDER BY created_at DESC
       LIMIT 200
-    `).all(contact.id, contact.company_id ?? -1)
+    `, [contact.id, contact.company_id ?? -1])
     : [];
 
-  const opportunities = hasTable('opportunities')
-    ? db.prepare(`
+  const opportunities = (await hasTable('opportunities'))
+    ? await queryAll(`
       SELECT id, title, stage, value, created_at
       FROM opportunities
       WHERE contact_id = ? OR company_id = ?
       ORDER BY created_at DESC
       LIMIT 200
-    `).all(contact.id, contact.company_id ?? -1)
+    `, [contact.id, contact.company_id ?? -1])
     : [];
 
-  const quotations = db.prepare(`
+  const quotations = await queryAll(`
     SELECT q.id, q.quote_number, q.status, q.total, q.created_at
     FROM quotes q
     WHERE q.lead_id = ?
     ORDER BY q.created_at DESC
     LIMIT 200
-  `).all(contact.lead_id);
+  `, [contact.lead_id]);
 
-  const marketingCampaignHistory = db.prepare(`
+  const marketingCampaignHistory = await queryAll(`
     SELECT a.id, a.activity_type, a.date, cp.campaign_name
     FROM activities a
     LEFT JOIN campaigns cp ON cp.id = a.campaign_id
     WHERE a.contact_id = ? AND a.campaign_id IS NOT NULL
     ORDER BY a.date DESC
     LIMIT 200
-  `).all(contact.id);
+  `, [contact.id]);
 
-  const callHistory = hasTable('call_logs')
-    ? db.prepare(`
+  const callHistory = (await hasTable('call_logs'))
+    ? await queryAll(`
       SELECT id, direction, duration_seconds, created_at
       FROM call_logs
       WHERE contact_id = ?
       ORDER BY created_at DESC
       LIMIT 200
-    `).all(contact.id)
-    : db.prepare(`
+    `, [contact.id])
+    : await queryAll(`
       SELECT id, activity_type, date AS created_at, notes
       FROM activities
       WHERE contact_id = ? AND lower(activity_type) = 'call'
       ORDER BY date DESC
       LIMIT 200
-    `).all(contact.id);
+    `, [contact.id]);
 
   return NextResponse.json({
     contact,
@@ -141,12 +130,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
   }
 
-  const setClause = fields.map((field) => `${field} = @${field}`).join(', ');
-  const db = getDb();
+  const setClause = fields.map((field) => `${field} = ?`).join(', ');
+  const values = fields.map((field) => {
+    const value = body[field];
+    if (typeof value === 'boolean') return value ? 1 : 0;
+    return value as string | number | null;
+  });
 
-  db.prepare(`UPDATE contacts SET ${setClause} WHERE id = @id`).run({ ...body, id });
+  await runStatement(`UPDATE contacts SET ${setClause} WHERE id = ?`, [...values, id]);
 
-  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(id);
+  const contact = await queryOne('SELECT * FROM contacts WHERE id = ?', [id]);
   if (!contact) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(contact);
 }

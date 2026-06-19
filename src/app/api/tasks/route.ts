@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
 import { getServerSession } from 'next-auth';
 
 export async function POST(req: NextRequest) {
@@ -10,13 +10,10 @@ export async function POST(req: NextRequest) {
   const subjectValue = (subject ?? title ?? '').trim();
   if (!subjectValue) return NextResponse.json({ error: 'subject required' }, { status: 400 });
 
-  const db = getDb();
   const statusValue = status ?? 'Open';
   const done = statusValue === 'Completed' ? 1 : 0;
-  const result = db.prepare(`
-    INSERT INTO tasks (lead_id, title, description, priority, due_date, assigned_user_id, status, done)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+
+  const values = [
     lead_id || null,
     subjectValue,
     description || null,
@@ -25,8 +22,24 @@ export async function POST(req: NextRequest) {
     assigned_user_id || null,
     statusValue,
     done,
+  ] as const;
+
+  if (isPostgresDb()) {
+    const task = await queryOne(
+      `INSERT INTO tasks (lead_id, title, description, priority, due_date, assigned_user_id, status, done)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING *`,
+      [...values]
+    );
+    return NextResponse.json(task, { status: 201 });
+  }
+
+  const result = await runStatement(
+    `INSERT INTO tasks (lead_id, title, description, priority, due_date, assigned_user_id, status, done)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [...values]
   );
-  const task = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(result.lastInsertRowid);
+  const task = await queryOne(`SELECT * FROM tasks WHERE id = ?`, [Number(result.lastInsertId)]);
   return NextResponse.json(task, { status: 201 });
 }
 
@@ -38,8 +51,6 @@ export async function GET(req: NextRequest) {
   const done = searchParams.get('done');
   const category = searchParams.get('category');
   const status = searchParams.get('status');
-  const db = getDb();
-
   let sql = `
     SELECT t.*, l.company_name, u.name AS assigned_user_name
     FROM tasks t
@@ -64,6 +75,6 @@ export async function GET(req: NextRequest) {
   }
   sql += ` ORDER BY t.done ASC, t.due_date ASC, t.created_at DESC`;
 
-  const tasks = db.prepare(sql).all(...params);
+  const tasks = await queryAll(sql, params as Array<string | number | boolean | null>);
   return NextResponse.json(tasks);
 }

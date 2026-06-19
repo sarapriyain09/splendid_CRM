@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getDb } from '@/lib/db';
+import { queryAll, queryOne } from '@/lib/db-client';
 
 type TimelineRow = {
   id: string;
@@ -24,83 +24,82 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'contact_id or company_id is required' }, { status: 400 });
   }
 
-  const db = getDb();
   const items: TimelineRow[] = [];
 
   if (contactId) {
-    const activities = db.prepare(`
+    const activities = await queryAll<TimelineRow>(`
       SELECT id, 'activity' AS type, activity_type AS title, notes AS description, coalesce(date, created_at) AS happened_at
       FROM activities
       WHERE contact_id = ?
       ORDER BY happened_at DESC
       LIMIT ?
-    `).all(contactId, limit) as TimelineRow[];
+    `, [contactId, limit]);
 
-    const notes = db.prepare(`
+    const notes = await queryAll<TimelineRow>(`
       SELECT id, 'note' AS type, 'Note' AS title, content AS description, created_at AS happened_at
       FROM notes
       WHERE contact_id = ?
       ORDER BY created_at DESC
       LIMIT ?
-    `).all(contactId, limit) as TimelineRow[];
+    `, [contactId, limit]);
 
-    const documents = db.prepare(`
+    const documents = await queryAll<TimelineRow>(`
       SELECT id, 'document' AS type, title, file_name AS description, created_at AS happened_at
       FROM documents
       WHERE contact_id = ?
       ORDER BY created_at DESC
       LIMIT ?
-    `).all(contactId, limit) as TimelineRow[];
+    `, [contactId, limit]);
 
-    const lead = db.prepare('SELECT lead_id FROM contacts WHERE id = ?').get(contactId) as { lead_id?: number } | undefined;
+    const lead = await queryOne<{ lead_id?: number }>('SELECT lead_id FROM contacts WHERE id = ?', [contactId]);
     const tasks = lead?.lead_id
-      ? db.prepare(`
+      ? await queryAll<TimelineRow>(`
           SELECT id, 'task' AS type, title, description, coalesce(due_date, created_at) AS happened_at
           FROM tasks
           WHERE lead_id = ?
           ORDER BY happened_at DESC
           LIMIT ?
-        `).all(lead.lead_id, limit) as TimelineRow[]
+        `, [lead.lead_id, limit])
       : [];
 
     items.push(...activities, ...tasks, ...notes, ...documents);
   }
 
   if (companyId) {
-    const activities = db.prepare(`
+    const activities = await queryAll<TimelineRow>(`
       SELECT a.id, 'activity' AS type, a.activity_type AS title, a.notes AS description, coalesce(a.date, a.created_at) AS happened_at
       FROM activities a
       LEFT JOIN leads l ON l.id = a.lead_id
       WHERE l.company_id = ?
       ORDER BY happened_at DESC
       LIMIT ?
-    `).all(companyId, limit) as TimelineRow[];
+    `, [companyId, limit]);
 
-    const notes = db.prepare(`
+    const notes = await queryAll<TimelineRow>(`
       SELECT id, 'note' AS type, 'Note' AS title, content AS description, created_at AS happened_at
       FROM notes
       WHERE company_id = ?
       ORDER BY created_at DESC
       LIMIT ?
-    `).all(companyId, limit) as TimelineRow[];
+    `, [companyId, limit]);
 
-    const documents = db.prepare(`
+    const documents = await queryAll<TimelineRow>(`
       SELECT id, 'document' AS type, title, file_name AS description, created_at AS happened_at
       FROM documents
       WHERE company_id = ?
       ORDER BY created_at DESC
       LIMIT ?
-    `).all(companyId, limit) as TimelineRow[];
+    `, [companyId, limit]);
 
-    const latestLead = db.prepare('SELECT id FROM leads WHERE company_id = ? ORDER BY created_at DESC LIMIT 1').get(companyId) as { id?: number } | undefined;
+    const latestLead = await queryOne<{ id?: number }>('SELECT id FROM leads WHERE company_id = ? ORDER BY created_at DESC LIMIT 1', [companyId]);
     const tasks = latestLead?.id
-      ? db.prepare(`
+      ? await queryAll<TimelineRow>(`
           SELECT id, 'task' AS type, title, description, coalesce(due_date, created_at) AS happened_at
           FROM tasks
           WHERE lead_id = ?
           ORDER BY happened_at DESC
           LIMIT ?
-        `).all(latestLead.id, limit) as TimelineRow[]
+        `, [latestLead.id, limit])
       : [];
 
     items.push(...activities, ...tasks, ...notes, ...documents);

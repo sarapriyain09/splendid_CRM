@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getDb } from '@/lib/db';
+import { isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
-  const db = getDb();
   const { searchParams } = new URL(req.url);
   const contactId = searchParams.get('contact_id');
   const companyId = searchParams.get('company_id');
@@ -34,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   sql += ' ORDER BY n.created_at DESC';
 
-  const notes = db.prepare(sql).all(...params);
+  const notes = await queryAll(sql, params);
   return NextResponse.json(notes);
 }
 
@@ -42,7 +41,6 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
-  const db = getDb();
   const body = (await req.json()) as {
     content?: string;
     contact_id?: number;
@@ -59,14 +57,12 @@ export async function POST(req: NextRequest) {
   let leadId = body.lead_id ?? null;
 
   if (!leadId && contactId) {
-    const row = db.prepare('SELECT lead_id FROM contacts WHERE id = ?').get(contactId) as { lead_id?: number } | undefined;
+    const row = await queryOne<{ lead_id?: number }>('SELECT lead_id FROM contacts WHERE id = ?', [contactId]);
     leadId = row?.lead_id ?? null;
   }
 
   if (!leadId && companyId) {
-    const row = db
-      .prepare('SELECT id FROM leads WHERE company_id = ? ORDER BY created_at DESC LIMIT 1')
-      .get(companyId) as { id?: number } | undefined;
+    const row = await queryOne<{ id?: number }>('SELECT id FROM leads WHERE company_id = ? ORDER BY created_at DESC LIMIT 1', [companyId]);
     leadId = row?.id ?? null;
   }
 
@@ -79,14 +75,26 @@ export async function POST(req: NextRequest) {
 
   const user = session.user as { id?: number } | undefined;
 
-  const result = db.prepare(`
-    INSERT INTO notes (lead_id, user_id, content, contact_id, company_id)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(leadId, user?.id ?? null, body.content.trim(), contactId, companyId);
+  if (isPostgresDb()) {
+    const note = await queryOne(
+      `INSERT INTO notes (lead_id, user_id, content, contact_id, company_id)
+       VALUES (?, ?, ?, ?, ?)
+       RETURNING id, content, created_at, lead_id, contact_id, company_id`,
+      [leadId, user?.id ?? null, body.content.trim(), contactId, companyId]
+    );
+    return NextResponse.json(note, { status: 201 });
+  }
 
-  const note = db
-    .prepare('SELECT id, content, created_at, lead_id, contact_id, company_id FROM notes WHERE id = ?')
-    .get(result.lastInsertRowid);
+  const result = await runStatement(
+    `INSERT INTO notes (lead_id, user_id, content, contact_id, company_id)
+     VALUES (?, ?, ?, ?, ?)`,
+    [leadId, user?.id ?? null, body.content.trim(), contactId, companyId]
+  );
+
+  const note = await queryOne(
+    'SELECT id, content, created_at, lead_id, contact_id, company_id FROM notes WHERE id = ?',
+    [Number(result.lastInsertId)]
+  );
 
   return NextResponse.json(note, { status: 201 });
 }

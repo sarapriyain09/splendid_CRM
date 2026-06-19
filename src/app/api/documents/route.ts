@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getDb } from '@/lib/db';
+import { isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
 
 const ALLOWED_TYPES = ['pdf', 'docx', 'xlsx', 'image'];
 
@@ -9,7 +9,6 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
-  const db = getDb();
   const { searchParams } = new URL(req.url);
   const contactId = searchParams.get('contact_id');
   const companyId = searchParams.get('company_id');
@@ -33,7 +32,7 @@ export async function GET(req: NextRequest) {
   }
 
   sql += ' ORDER BY d.created_at DESC';
-  const docs = db.prepare(sql).all(...params);
+  const docs = await queryAll(sql, params);
   return NextResponse.json(docs);
 }
 
@@ -61,12 +60,8 @@ export async function POST(req: NextRequest) {
   }
 
   const user = session.user as { id?: number } | undefined;
-  const db = getDb();
 
-  const result = db.prepare(`
-    INSERT INTO documents (title, file_name, file_type, file_size, file_url, contact_id, company_id, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  const values = [
     body.title.trim(),
     body.file_name.trim(),
     type,
@@ -74,9 +69,25 @@ export async function POST(req: NextRequest) {
     body.file_url ?? null,
     body.contact_id ?? null,
     body.company_id ?? null,
-    user?.id ?? null
+    user?.id ?? null,
+  ] as const;
+
+  if (isPostgresDb()) {
+    const doc = await queryOne(
+      `INSERT INTO documents (title, file_name, file_type, file_size, file_url, contact_id, company_id, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING *`,
+      [...values]
+    );
+    return NextResponse.json(doc, { status: 201 });
+  }
+
+  const result = await runStatement(
+    `INSERT INTO documents (title, file_name, file_type, file_size, file_url, contact_id, company_id, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [...values]
   );
 
-  const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(result.lastInsertRowid);
+  const doc = await queryOne('SELECT * FROM documents WHERE id = ?', [Number(result.lastInsertId)]);
   return NextResponse.json(doc, { status: 201 });
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getDb } from '@/lib/db';
+import { queryAll } from '@/lib/db-client';
 
 type SearchItem = {
   id: number;
@@ -32,55 +32,53 @@ export async function GET(req: NextRequest) {
   }
 
   const like = `%${q}%`;
-  const db = getDb();
-
-  const contacts = db.prepare(`
+  const contacts = await queryAll<Omit<SearchItem, 'type'>>(`
     SELECT id, name AS title, email AS subtitle, created_at
     FROM contacts
     WHERE name LIKE ? OR email LIKE ? OR company LIKE ?
     ORDER BY created_at DESC
     LIMIT ?
-  `).all(like, like, like, limit) as Array<Omit<SearchItem, 'type'>>;
+  `, [like, like, like, limit]);
 
-  const companies = db.prepare(`
+  const companies = await queryAll<Omit<SearchItem, 'type'>>(`
     SELECT id, name AS title, industry AS subtitle, created_at
     FROM companies
     WHERE name LIKE ? OR industry LIKE ? OR website LIKE ?
     ORDER BY created_at DESC
     LIMIT ?
-  `).all(like, like, like, limit) as Array<Omit<SearchItem, 'type'>>;
+  `, [like, like, like, limit]);
 
-  const activities = db.prepare(`
+  const activities = await queryAll<Omit<SearchItem, 'type'>>(`
     SELECT id, activity_type AS title, notes AS subtitle, created_at
     FROM activities
     WHERE activity_type LIKE ? OR notes LIKE ?
     ORDER BY date DESC, created_at DESC
     LIMIT ?
-  `).all(like, like, limit) as Array<Omit<SearchItem, 'type'>>;
+  `, [like, like, limit]);
 
-  const tasks = db.prepare(`
+  const tasks = await queryAll<Omit<SearchItem, 'type'>>(`
     SELECT id, title, description AS subtitle, created_at
     FROM tasks
     WHERE title LIKE ? OR description LIKE ?
     ORDER BY created_at DESC
     LIMIT ?
-  `).all(like, like, limit) as Array<Omit<SearchItem, 'type'>>;
+  `, [like, like, limit]);
 
-  const notes = db.prepare(`
+  const notes = await queryAll<Omit<SearchItem, 'type'>>(`
     SELECT id, substr(content, 1, 120) AS title, content AS subtitle, created_at
     FROM notes
     WHERE content LIKE ?
     ORDER BY created_at DESC
     LIMIT ?
-  `).all(like, limit) as Array<Omit<SearchItem, 'type'>>;
+  `, [like, limit]);
 
-  const documents = db.prepare(`
+  const documents = await queryAll<Omit<SearchItem, 'type'>>(`
     SELECT id, title, file_name AS subtitle, created_at
     FROM documents
     WHERE title LIKE ? OR file_name LIKE ?
     ORDER BY created_at DESC
     LIMIT ?
-  `).all(like, like, limit) as Array<Omit<SearchItem, 'type'>>;
+  `, [like, like, limit]);
 
   return NextResponse.json({
     query: q,
