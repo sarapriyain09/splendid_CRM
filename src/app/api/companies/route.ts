@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     if (await hasTable('leads')) {
       await runStatement(`
         INSERT INTO companies (name, status)
-        SELECT DISTINCT l.company_name, 'Prospect'
+        SELECT DISTINCT l.company_name, 'Prospect'::crm_company_status
         FROM leads l
         WHERE l.company_name IS NOT NULL
           AND TRIM(l.company_name) <> ''
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
     const created = await queryOne(
       `INSERT INTO companies
         (name, website, linkedin_url, industry, country, employee_count, status, description, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       VALUES (?, ?, ?, ?, ?, ?, ?::crm_company_status, ?, CURRENT_TIMESTAMP)
        RETURNING *`,
       [...values]
     );

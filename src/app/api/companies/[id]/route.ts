@@ -197,6 +197,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = (await req.json()) as Record<string, unknown>;
 
+  if (isPostgresDb() && typeof body.status === 'string') {
+    // Ensure enum-compatible assignment for PostgreSQL company status.
+    await runStatement(
+      `UPDATE companies
+       SET status = ?::crm_company_status, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [body.status, id]
+    );
+
+    const company = await queryOne('SELECT * FROM companies WHERE id = ?', [id]);
+    if (!company) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(company);
+  }
+
   const fields = Object.keys(body).filter((key) => key !== 'id');
   if (fields.length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
 
