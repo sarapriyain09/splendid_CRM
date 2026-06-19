@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 
 type NoteRow = {
   id: number;
@@ -12,6 +13,8 @@ type NoteRow = {
 };
 
 export default function NotesPage() {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'admin';
   const [rows, setRows] = useState<NoteRow[]>([]);
   const [content, setContent] = useState('<p></p>');
   const [companyId, setCompanyId] = useState('');
@@ -19,6 +22,17 @@ export default function NotesPage() {
   async function load() {
     const res = await fetch('/api/notes');
     if (res.ok) setRows(await res.json());
+  }
+
+  async function deleteNote(id: number) {
+    if (!confirm('Delete this note? This cannot be undone.')) return;
+    const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setRows((prev) => prev.filter((r) => r.id !== id));
+    } else {
+      const payload = await res.json().catch(() => ({}));
+      alert(payload?.error || 'Failed to delete note');
+    }
   }
 
   useEffect(() => {
@@ -65,8 +79,18 @@ export default function NotesPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         {rows.map((row) => (
           <div key={row.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-            <div className="text-xs text-slate-500 mb-1">
-              {(row.contact_name || row.company_name || 'CRM')} · {row.user_name ?? 'System'} · {new Date(row.created_at).toLocaleString('en-GB')}
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-xs text-slate-500 mb-1">
+                {(row.contact_name || row.company_name || 'CRM')} · {row.user_name ?? 'System'} · {new Date(row.created_at).toLocaleString('en-GB')}
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={() => deleteNote(row.id)}
+                  className="text-red-600 hover:text-red-700 text-xs font-medium flex-shrink-0"
+                >
+                  Delete
+                </button>
+              )}
             </div>
             <div className="text-sm text-slate-800" dangerouslySetInnerHTML={{ __html: row.content }} />
           </div>

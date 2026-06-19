@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 
 const TYPES = ['Call', 'Meeting', 'Email', 'Visit', 'Note'] as const;
 
@@ -14,6 +15,8 @@ type ActivityRow = {
 };
 
 export default function ActivitiesPage() {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'admin';
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [activityType, setActivityType] = useState<string>('');
   const [notes, setNotes] = useState('');
@@ -22,6 +25,17 @@ export default function ActivitiesPage() {
     const q = type ? `?activity_type=${encodeURIComponent(type.toLowerCase())}` : '';
     const res = await fetch(`/api/activities${q}`);
     if (res.ok) setRows(await res.json());
+  }
+
+  async function deleteActivity(id: number) {
+    if (!confirm('Delete this activity? This cannot be undone.')) return;
+    const res = await fetch(`/api/activities/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setRows((prev) => prev.filter((r) => r.id !== id));
+    } else {
+      const payload = await res.json().catch(() => ({}));
+      alert(payload?.error || 'Failed to delete activity');
+    }
   }
 
   useEffect(() => {
@@ -84,12 +98,22 @@ export default function ActivitiesPage() {
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Timeline</h2>
         <div className="space-y-3">
           {rows.map((row) => (
-            <div key={row.id} className="border-l-2 border-blue-200 pl-4 py-1">
-              <div className="text-sm font-medium text-slate-800">{row.activity_type}</div>
-              <div className="text-xs text-slate-500 mt-0.5">
-                {(row.contact_name || row.company_name || 'CRM')} · {new Date(row.date).toLocaleString('en-GB')}
+            <div key={row.id} className="border-l-2 border-blue-200 pl-4 py-1 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium text-slate-800">{row.activity_type}</div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  {(row.contact_name || row.company_name || 'CRM')} · {new Date(row.date).toLocaleString('en-GB')}
+                </div>
+                {row.notes && <p className="text-sm text-slate-700 mt-1">{row.notes}</p>}
               </div>
-              {row.notes && <p className="text-sm text-slate-700 mt-1">{row.notes}</p>}
+              {isAdmin && (
+                <button
+                  onClick={() => deleteActivity(row.id)}
+                  className="text-red-600 hover:text-red-700 text-xs font-medium flex-shrink-0"
+                >
+                  Delete
+                </button>
+              )}
             </div>
           ))}
           {rows.length === 0 && <p className="text-sm text-slate-500">No activities recorded.</p>}

@@ -1,7 +1,8 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 
 type TabKey =
   | 'activities'
@@ -46,6 +47,9 @@ const CONTACT_STATUS_OPTIONS = ['Pending', 'Connected', 'Message1', 'Interested'
 
 export default function ContactDetailPage() {
   const params = useParams<{ id?: string | string[] }>();
+  const router = useRouter();
+  const { data: sessionData } = useSession();
+  const isAdmin = (sessionData?.user as { role?: string } | undefined)?.role === 'admin';
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const [active, setActive] = useState<TabKey>('activities');
   const [data, setData] = useState<ContactDetailResponse | null>(null);
@@ -433,6 +437,24 @@ export default function ContactDetailPage() {
           >
             {saving ? 'Saving...' : 'Save LinkedIn Update'}
           </button>
+          {isAdmin && (
+            <button
+              onClick={async () => {
+                if (!id) return;
+                if (!confirm(`Delete contact "${name || ''}"? This cannot be undone.`)) return;
+                const res = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                  router.push('/contacts');
+                } else {
+                  const payload = await res.json().catch(() => ({}));
+                  setActionError(payload?.error || 'Failed to delete contact');
+                }
+              }}
+              className="inline-flex items-center rounded-lg border border-red-300 text-red-600 px-4 py-2 text-sm font-medium hover:bg-red-50"
+            >
+              Delete Contact
+            </button>
+          )}
           {linkedinUrl.trim() ? (
             <a href={linkedinUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-700 hover:text-blue-600">
               Open profile

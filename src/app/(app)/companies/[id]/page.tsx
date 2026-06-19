@@ -1,7 +1,8 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { INDUSTRY_OPTIONS } from '@/lib/industry-options';
 
 type TabKey =
@@ -57,6 +58,9 @@ function toDisplayValue(value: unknown): string {
 
 export default function CompanyDetailPage() {
   const params = useParams<{ id?: string | string[] }>();
+  const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'admin';
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const [active, setActive] = useState<TabKey>('contacts');
   const [data, setData] = useState<any>(null);
@@ -138,7 +142,20 @@ export default function CompanyDetailPage() {
     if (!data?.tabs) return [];
     return Array.isArray(data.tabs[active]) ? data.tabs[active] : [];
   }, [data, active]);
+
   const industryOptions = useMemo(() => buildIndustryOptions(industry), [industry]);
+
+  const deleteCompany = async () => {
+    if (!id) return;
+    if (!confirm(`Delete company "${data?.company?.name ?? ''}"? This cannot be undone.`)) return;
+    const res = await fetch(`/api/companies/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      router.push('/companies');
+    } else {
+      const payload = await res.json().catch(() => ({}));
+      setError(payload?.error || 'Failed to delete company');
+    }
+  };
 
   if (pageError) {
     return <div className="text-red-600">{pageError}</div>;
@@ -211,6 +228,14 @@ export default function CompanyDetailPage() {
           >
             {saving ? 'Saving...' : 'Save Company'}
           </button>
+          {isAdmin && (
+            <button
+              onClick={deleteCompany}
+              className="inline-flex items-center rounded-lg border border-red-300 text-red-600 px-4 py-2 text-sm font-medium hover:bg-red-50"
+            >
+              Delete Company
+            </button>
+          )}
           {success ? <span className="text-sm text-emerald-700">{success}</span> : null}
           {error ? <span className="text-sm text-red-600">{error}</span> : null}
         </div>

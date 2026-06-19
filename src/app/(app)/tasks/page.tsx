@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 
 type TaskStatus = 'Open' | 'In Progress' | 'Completed' | 'Cancelled';
 type TaskPriority = 'Low' | 'Medium' | 'High';
@@ -16,6 +17,8 @@ interface TaskRow {
 }
 
 export default function TasksPage() {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'admin';
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [filter, setFilter] = useState<'all' | TaskStatus>('Open');
   const [subject, setSubject] = useState('');
@@ -39,6 +42,17 @@ export default function TasksPage() {
       body: JSON.stringify({ status: nextStatus }),
     });
     load();
+  }
+
+  async function deleteTask(task: TaskRow) {
+    if (!confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
+    const res = await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    } else {
+      const payload = await res.json().catch(() => ({}));
+      alert(payload?.error || 'Failed to delete task');
+    }
   }
 
   async function createTask() {
@@ -145,6 +159,14 @@ export default function TasksPage() {
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </select>
+            {isAdmin && (
+              <button
+                onClick={() => deleteTask(t)}
+                className="text-red-600 hover:text-red-700 text-xs font-medium flex-shrink-0"
+              >
+                Delete
+              </button>
+            )}
           </div>
         ))}
       </div>

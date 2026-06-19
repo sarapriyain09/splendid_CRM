@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { isAdminUser } from '@/lib/api-auth';
 import { hasTable, isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
 
 type Params = { params: Promise<{ id: string }> };
@@ -279,4 +280,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const contact = await queryOne('SELECT * FROM contacts WHERE id = ?', [id]);
   if (!contact) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(contact);
+}
+
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  if (!(await isAdminUser())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const { id } = await params;
+  await runStatement('DELETE FROM contacts WHERE id = ?', [id]);
+  return NextResponse.json({ ok: true });
 }

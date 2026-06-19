@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 
 type ContactRow = {
   id: number;
@@ -15,13 +16,31 @@ type ContactRow = {
 };
 
 export default function ContactsPage() {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'admin';
   const [rows, setRows] = useState<ContactRow[]>([]);
   const [query, setQuery] = useState('');
 
-  useEffect(() => {
+  function loadContacts() {
     const url = query.trim() ? `/api/contacts?search=${encodeURIComponent(query.trim())}` : '/api/contacts';
     fetch(url).then((r) => r.json()).then((data) => setRows(Array.isArray(data) ? data : []));
+  }
+
+  useEffect(() => {
+    loadContacts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
+
+  async function deleteContact(id: number, name: string) {
+    if (!confirm(`Delete contact "${name}"? This cannot be undone.`)) return;
+    const res = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setRows((prev) => prev.filter((r) => r.id !== id));
+    } else {
+      const payload = await res.json().catch(() => ({}));
+      alert(payload?.error || 'Failed to delete contact');
+    }
+  }
 
   const filtered = useMemo(() => rows.slice(0, 250), [rows]);
 
@@ -47,6 +66,7 @@ export default function ContactsPage() {
               <th className="text-left px-4 py-2">Email</th>
               <th className="text-left px-4 py-2">Phone</th>
               <th className="text-left px-4 py-2">Status</th>
+              {isAdmin && <th className="text-right px-4 py-2">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -62,11 +82,21 @@ export default function ContactsPage() {
                 <td className="px-4 py-2 text-slate-700">{row.email ?? '-'}</td>
                 <td className="px-4 py-2 text-slate-700">{row.phone ?? '-'}</td>
                 <td className="px-4 py-2 text-slate-700">{row.status}</td>
+                {isAdmin && (
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      onClick={() => deleteContact(row.id, row.name)}
+                      className="text-red-600 hover:text-red-700 text-xs font-medium"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-500">No contacts found.</td>
+                <td colSpan={isAdmin ? 7 : 6} className="px-4 py-10 text-center text-slate-500">No contacts found.</td>
               </tr>
             )}
           </tbody>

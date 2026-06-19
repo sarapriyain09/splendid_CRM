@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queryOne, runStatement } from '@/lib/db-client';
 import { getServerSession } from 'next-auth';
+import { isAdminUser } from '@/lib/api-auth';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
@@ -42,8 +43,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession();
-  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await isAdminUser())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await params;
   await runStatement(`DELETE FROM tasks WHERE id = ?`, [id]);

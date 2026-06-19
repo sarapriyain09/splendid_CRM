@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 
 type DocumentRow = {
   id: number;
@@ -16,6 +17,8 @@ type DocumentRow = {
 const FILE_TYPES = ['pdf', 'docx', 'xlsx', 'image'] as const;
 
 export default function DocumentsPage() {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'admin';
   const [rows, setRows] = useState<DocumentRow[]>([]);
   const [title, setTitle] = useState('');
   const [fileName, setFileName] = useState('');
@@ -27,6 +30,17 @@ export default function DocumentsPage() {
   async function load() {
     const res = await fetch('/api/documents');
     if (res.ok) setRows(await res.json());
+  }
+
+  async function deleteDocument(id: number) {
+    if (!confirm('Delete this document? This cannot be undone.')) return;
+    const res = await fetch(`/api/documents/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setRows((prev) => prev.filter((r) => r.id !== id));
+    } else {
+      const payload = await res.json().catch(() => ({}));
+      alert(payload?.error || 'Failed to delete document');
+    }
   }
 
   useEffect(() => {
@@ -83,6 +97,7 @@ export default function DocumentsPage() {
               <th className="text-left px-3 py-2">File</th>
               <th className="text-left px-3 py-2">Linked To</th>
               <th className="text-left px-3 py-2">Created</th>
+              {isAdmin && <th className="text-right px-3 py-2">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -93,11 +108,21 @@ export default function DocumentsPage() {
                 <td className="px-3 py-2 text-slate-700">{row.file_url ? <a href={row.file_url} target="_blank" className="text-blue-700 hover:text-blue-600">{row.file_name}</a> : row.file_name}</td>
                 <td className="px-3 py-2 text-slate-700">{row.contact_name || row.company_name || '-'}</td>
                 <td className="px-3 py-2 text-slate-700">{new Date(row.created_at).toLocaleDateString('en-GB')}</td>
+                {isAdmin && (
+                  <td className="px-3 py-2 text-right">
+                    <button
+                      onClick={() => deleteDocument(row.id)}
+                      className="text-red-600 hover:text-red-700 text-xs font-medium"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-slate-500">No documents found.</td>
+                <td colSpan={isAdmin ? 6 : 5} className="px-3 py-8 text-center text-slate-500">No documents found.</td>
               </tr>
             )}
           </tbody>

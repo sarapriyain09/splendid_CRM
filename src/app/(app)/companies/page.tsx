@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { INDUSTRY_OPTIONS } from '@/lib/industry-options';
 
 function industryDisplay(value: string | null): string {
@@ -39,6 +40,8 @@ const COUNTRY_OPTIONS = [
 ] as const;
 
 export default function CompaniesPage() {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'admin';
   const [rows, setRows] = useState<CompanyRow[]>([]);
   const [query, setQuery] = useState('');
   const [name, setName] = useState('');
@@ -128,6 +131,17 @@ export default function CompaniesPage() {
   };
 
   const visible = useMemo(() => rows.slice(0, 250), [rows]);
+
+  const deleteCompany = async (id: number | string, name: string) => {
+    if (!confirm(`Delete company "${name}"? This cannot be undone.`)) return;
+    const res = await fetch(`/api/companies/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setRows((prev) => prev.filter((r) => r.id !== id));
+    } else {
+      const payload = await res.json().catch(() => ({}));
+      alert(payload?.error || 'Failed to delete company');
+    }
+  };
   const industryOptions = useMemo(() => {
     const set = new Set<string>(INDUSTRY_OPTIONS);
     rows.forEach((row) => {
@@ -212,6 +226,7 @@ export default function CompaniesPage() {
               <th className="w-[24%] text-left px-2 md:px-3 py-2">Website</th>
               <th className="w-[14%] text-left px-2 md:px-3 py-2 whitespace-nowrap">Contacts/Leads</th>
               <th className="hidden 2xl:table-cell w-[10%] text-left px-2 md:px-3 py-2">Status</th>
+              {isAdmin && <th className="w-[8%] text-right px-2 md:px-3 py-2">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -227,11 +242,21 @@ export default function CompaniesPage() {
                 <td className="px-2 md:px-3 py-2 text-slate-700 truncate" title={row.website ?? '-'}>{row.website ?? '-'}</td>
                 <td className="px-2 md:px-3 py-2 text-slate-700">{row.lead_count ?? 0}</td>
                 <td className="hidden 2xl:table-cell px-2 md:px-3 py-2 text-slate-700 truncate" title={row.status}>{row.status}</td>
+                {isAdmin && (
+                  <td className="px-2 md:px-3 py-2 text-right">
+                    <button
+                      onClick={() => deleteCompany(row.id, row.name)}
+                      className="text-red-600 hover:text-red-700 text-xs font-medium"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-2 md:px-3 py-10 text-center text-slate-500">No companies found.</td>
+                <td colSpan={isAdmin ? 7 : 6} className="px-2 md:px-3 py-10 text-center text-slate-500">No companies found.</td>
               </tr>
             )}
           </tbody>
