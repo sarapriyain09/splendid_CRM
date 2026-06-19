@@ -49,10 +49,22 @@ export default function CompaniesPage() {
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadCompanies = () => {
+  const loadCompanies = async () => {
     const url = query.trim() ? `/api/companies?search=${encodeURIComponent(query.trim())}` : '/api/companies';
-    fetch(url).then((r) => r.json()).then((data) => setRows(Array.isArray(data) ? data : []));
+    try {
+      setLoadError(null);
+      const response = await fetch(url);
+      const payload = await response.json().catch(() => []);
+      if (!response.ok) {
+        throw new Error((payload as { error?: string })?.error || 'Failed to load accounts');
+      }
+      setRows(Array.isArray(payload) ? payload : []);
+    } catch (e) {
+      setRows([]);
+      setLoadError(e instanceof Error ? e.message : 'Failed to load accounts');
+    }
   };
 
   useEffect(() => {
@@ -167,6 +179,7 @@ export default function CompaniesPage() {
       </div>
 
       <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
+        {loadError ? <div className="px-4 py-3 text-sm text-red-600 border-b border-slate-200">{loadError}</div> : null}
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
             <tr>
