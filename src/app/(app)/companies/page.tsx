@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { INDUSTRY_OPTIONS, joinIndustryValue } from '@/lib/industry-options';
 
 type CompanyRow = {
   id: number;
@@ -12,19 +13,6 @@ type CompanyRow = {
   status: string;
   lead_count?: number;
 };
-
-const DEFAULT_INDUSTRY_OPTIONS = [
-  'Engineering',
-  'Manufacturing',
-  'Information Technology',
-  'Construction',
-  'Retail',
-  'Healthcare',
-  'Finance',
-  'Education',
-  'Logistics',
-  'Other',
-] as const;
 
 const COUNTRY_OPTIONS = [
   'United Kingdom',
@@ -43,7 +31,8 @@ export default function CompaniesPage() {
   const [rows, setRows] = useState<CompanyRow[]>([]);
   const [query, setQuery] = useState('');
   const [name, setName] = useState('');
-  const [industry, setIndustry] = useState('');
+  const [industryPrimary, setIndustryPrimary] = useState('');
+  const [industrySecondary, setIndustrySecondary] = useState('');
   const [country, setCountry] = useState('');
   const [website, setWebsite] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
@@ -103,7 +92,7 @@ export default function CompaniesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          industry: industry.trim() || null,
+          industry: joinIndustryValue(industryPrimary, industrySecondary) || null,
           country: country.trim() || null,
           website: website.trim() || null,
           linkedin_url: linkedinUrl.trim() || null,
@@ -116,7 +105,8 @@ export default function CompaniesPage() {
       }
 
       setName('');
-      setIndustry('');
+      setIndustryPrimary('');
+      setIndustrySecondary('');
       setCountry('');
       setWebsite('');
       setLinkedinUrl('');
@@ -130,7 +120,7 @@ export default function CompaniesPage() {
 
   const visible = useMemo(() => rows.slice(0, 250), [rows]);
   const industryOptions = useMemo(() => {
-    const set = new Set<string>(DEFAULT_INDUSTRY_OPTIONS);
+    const set = new Set<string>(INDUSTRY_OPTIONS);
     rows.forEach((row) => {
       const value = (row.industry || '').trim();
       if (value) set.add(value);
@@ -152,7 +142,7 @@ export default function CompaniesPage() {
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="text-sm font-semibold text-slate-800 mb-3">Add Company</h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -160,11 +150,21 @@ export default function CompaniesPage() {
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
           />
           <select
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
+            value={industryPrimary}
+            onChange={(e) => setIndustryPrimary(e.target.value)}
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
           >
-            <option value="">Select industry</option>
+            <option value="">Select industry (primary)</option>
+            {industryOptions.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+          <select
+            value={industrySecondary}
+            onChange={(e) => setIndustrySecondary(e.target.value)}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="">Select industry (secondary)</option>
             {industryOptions.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}

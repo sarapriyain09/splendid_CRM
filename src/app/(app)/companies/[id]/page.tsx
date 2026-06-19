@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { INDUSTRY_OPTIONS, joinIndustryValue, splitIndustryValue } from '@/lib/industry-options';
 
 type TabKey =
   | 'contacts'
@@ -25,19 +26,6 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'campaignHistory', label: 'Campaign History (Read-only)' },
   { key: 'callHistory', label: 'Call History (Read-only)' },
 ];
-
-const INDUSTRY_OPTIONS = [
-  'Engineering',
-  'Manufacturing',
-  'Information Technology',
-  'Construction',
-  'Retail',
-  'Healthcare',
-  'Finance',
-  'Education',
-  'Logistics',
-  'Other',
-] as const;
 
 const COUNTRY_OPTIONS = [
   'United Kingdom',
@@ -73,7 +61,8 @@ export default function CompanyDetailPage() {
   const [active, setActive] = useState<TabKey>('contacts');
   const [data, setData] = useState<any>(null);
   const [name, setName] = useState('');
-  const [industry, setIndustry] = useState('');
+  const [industryPrimary, setIndustryPrimary] = useState('');
+  const [industrySecondary, setIndustrySecondary] = useState('');
   const [country, setCountry] = useState('');
   const [website, setWebsite] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
@@ -101,7 +90,9 @@ export default function CompanyDetailPage() {
       .then((payload) => {
         setData(payload);
         setName(payload?.company?.name ?? '');
-        setIndustry(payload?.company?.industry ?? '');
+        const [primary, secondary] = splitIndustryValue(payload?.company?.industry ?? '');
+        setIndustryPrimary(primary);
+        setIndustrySecondary(secondary);
         setCountry(payload?.company?.country ?? '');
         setWebsite(payload?.company?.website ?? '');
         setLinkedinUrl(payload?.company?.linkedin_url ?? '');
@@ -124,7 +115,7 @@ export default function CompanyDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim() || null,
-          industry: industry.trim() || null,
+          industry: joinIndustryValue(industryPrimary, industrySecondary) || null,
           country: country.trim() || null,
           website: website.trim() || null,
           linkedin_url: linkedinUrl.trim() || null,
@@ -150,7 +141,7 @@ export default function CompanyDetailPage() {
     if (!data?.tabs) return [];
     return Array.isArray(data.tabs[active]) ? data.tabs[active] : [];
   }, [data, active]);
-  const industryOptions = useMemo(() => buildIndustryOptions(industry), [industry]);
+  const industryOptions = useMemo(() => buildIndustryOptions(joinIndustryValue(industryPrimary, industrySecondary)), [industryPrimary, industrySecondary]);
 
   if (pageError) {
     return <div className="text-red-600">{pageError}</div>;
@@ -164,7 +155,7 @@ export default function CompanyDetailPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">{data.company.name}</h1>
-        <p className="text-sm text-slate-600 mt-1">{data.company.industry ?? '-'} · {data.company.country ?? '-'}</p>
+        <p className="text-sm text-slate-600 mt-1">{joinIndustryValue(industryPrimary, industrySecondary) || '-'} · {data.company.country ?? '-'}</p>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -177,11 +168,21 @@ export default function CompanyDetailPage() {
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
           />
           <select
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
+            value={industryPrimary}
+            onChange={(e) => setIndustryPrimary(e.target.value)}
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
           >
-            <option value="">Select industry</option>
+            <option value="">Select industry (primary)</option>
+            {industryOptions.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+          <select
+            value={industrySecondary}
+            onChange={(e) => setIndustrySecondary(e.target.value)}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="">Select industry (secondary)</option>
             {industryOptions.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
