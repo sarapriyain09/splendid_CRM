@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
+import { queryAll, queryOne, runStatement } from '@/lib/db-client';
 
 const ALLOWED_TYPES = ['pdf', 'docx', 'xlsx', 'image'];
 
@@ -71,16 +71,6 @@ export async function POST(req: NextRequest) {
     body.company_id ?? null,
     user?.id ?? null,
   ] as const;
-
-  if (isPostgresDb()) {
-    const doc = await queryOne(
-      `INSERT INTO documents (title, file_name, file_type, file_size, file_url, contact_id, company_id, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       RETURNING *`,
-      [...values]
-    );
-    return NextResponse.json(doc, { status: 201 });
-  }
 
   const result = await runStatement(
     `INSERT INTO documents (title, file_name, file_type, file_size, file_url, contact_id, company_id, created_by)

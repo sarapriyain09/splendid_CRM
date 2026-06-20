@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getDb } from '@/lib/db';
+import { queryOne, runStatement } from '@/lib/db-client';
 
 interface ImportBody {
   clientName?: string;
@@ -34,9 +34,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid proposalStatus.' }, { status: 400 });
   }
 
-  const db = getDb();
-
-  const existing = db.prepare('SELECT id FROM leads WHERE upwork_project_url = ?').get(projectUrl) as { id: number } | undefined;
+  const existing = await queryOne<{ id: number }>('SELECT id FROM leads WHERE upwork_project_url = ?', [projectUrl]);
   if (existing) {
     return NextResponse.json({ error: 'Already imported', lead: existing }, { status: 409 });
   }
@@ -49,7 +47,7 @@ export async function POST(req: NextRequest) {
     body.budget?.trim() ? `Budget: ${body.budget!.trim()}` : null,
   ].filter(Boolean).join(' | ');
 
-  const insert = db.prepare(`
+  const result = await runStatement(`
     INSERT INTO leads
       (company_name, source, lead_score, status, stage, notes, vertical, created_by,
        upwork_client_name, upwork_company, upwork_project_title, upwork_project_url,
@@ -58,9 +56,7 @@ export async function POST(req: NextRequest) {
       (@company_name, 'upwork', 55, 'new', 'prospect', @notes, @vertical, @created_by,
        @upwork_client_name, @upwork_company, @upwork_project_title, @upwork_project_url,
        @upwork_budget, @upwork_proposal_date, @upwork_proposal_status, datetime('now'))
-  `);
-
-  const result = insert.run({
+  `, {
     company_name: companyName,
     notes: leadNotes || null,
     vertical,
@@ -74,14 +70,14 @@ export async function POST(req: NextRequest) {
     upwork_proposal_status: proposalStatus,
   });
 
-  const leadId = Number(result.lastInsertRowid);
+  const leadId = Number(result.lastInsertId);
 
   const followupDate = (body.followupDate ?? '').trim() || null;
-  db.prepare(`
+  await runStatement(`
     INSERT INTO tasks (lead_id, title, due_date, done, created_at)
     VALUES (?, ?, ?, 0, datetime('now'))
-  `).run(leadId, 'Upwork follow-up', followupDate);
+  `, [leadId, 'Upwork follow-up', followupDate]);
 
-  const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(leadId);
+  const lead = await queryOne('SELECT * FROM leads WHERE id = ?', [leadId]);
   return NextResponse.json({ ok: true, lead }, { status: 201 });
 }

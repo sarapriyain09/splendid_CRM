@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
+import { queryAll, queryOne, runStatement } from '@/lib/db-client';
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -74,16 +74,6 @@ export async function POST(req: NextRequest) {
   }
 
   const user = session.user as { id?: number } | undefined;
-
-  if (isPostgresDb()) {
-    const note = await queryOne(
-      `INSERT INTO notes (lead_id, user_id, content, contact_id, company_id)
-       VALUES (?, ?, ?, ?, ?)
-       RETURNING id, content, created_at, lead_id, contact_id, company_id`,
-      [leadId, user?.id ?? null, body.content.trim(), contactId, companyId]
-    );
-    return NextResponse.json(note, { status: 201 });
-  }
 
   const result = await runStatement(
     `INSERT INTO notes (lead_id, user_id, content, contact_id, company_id)

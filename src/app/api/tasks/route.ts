@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
+import { queryAll, queryOne, runStatement } from '@/lib/db-client';
 import { getServerSession } from 'next-auth';
 
 export async function POST(req: NextRequest) {
@@ -23,16 +23,6 @@ export async function POST(req: NextRequest) {
     statusValue,
     done,
   ] as const;
-
-  if (isPostgresDb()) {
-    const task = await queryOne(
-      `INSERT INTO tasks (lead_id, title, description, priority, due_date, assigned_user_id, status, done)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       RETURNING *`,
-      [...values]
-    );
-    return NextResponse.json(task, { status: 201 });
-  }
 
   const result = await runStatement(
     `INSERT INTO tasks (lead_id, title, description, priority, due_date, assigned_user_id, status, done)

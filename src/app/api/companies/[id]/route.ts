@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { isAdminUser } from '@/lib/api-auth';
-import { hasTable, isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
+import { hasTable, queryAll, queryOne, runStatement } from '@/lib/db-client';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,21 +17,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     | undefined;
   if (!company) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const contacts = isPostgresDb()
-    ? await queryAll(`
-      SELECT
-        c.id,
-        COALESCE(NULLIF(c.display_name, ''), TRIM(c.first_name || ' ' || COALESCE(c.last_name, ''))) AS name,
-        c.email,
-        COALESCE(c.mobile, c.phone) AS phone,
-        c.job_title,
-        c.created_at
-      FROM contacts c
-      WHERE c.company_id = ?
-      ORDER BY c.created_at DESC
-      LIMIT 200
-    `, [company.id])
-    : await queryAll(`
+  const contacts = await queryAll(`
       SELECT c.id, c.name, c.email, c.phone, c.job_title, c.created_at
       FROM contacts c
       LEFT JOIN leads l ON l.id = c.lead_id
@@ -40,21 +26,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       LIMIT 200
     `, [company.id]);
 
-  const activities = isPostgresDb()
-    ? await queryAll(`
-      SELECT
-        a.id,
-        a.type AS activity_type,
-        a.date,
-        COALESCE(a.description, a.subject) AS notes,
-        COALESCE(NULLIF(ct.display_name, ''), TRIM(ct.first_name || ' ' || COALESCE(ct.last_name, ''))) AS contact_name
-      FROM activities a
-      LEFT JOIN contacts ct ON ct.id = a.contact_id
-      WHERE a.company_id = ?
-      ORDER BY a.date DESC, a.created_at DESC
-      LIMIT 200
-    `, [company.id])
-    : await queryAll(`
+  const activities = await queryAll(`
       SELECT a.id, a.activity_type, a.date, a.notes, ct.name AS contact_name
       FROM activities a
       LEFT JOIN leads l ON l.id = a.lead_id
@@ -64,22 +36,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       LIMIT 200
     `, [company.id]);
 
-  const tasks = isPostgresDb()
-    ? await queryAll(`
-      SELECT
-        t.id,
-        t.title,
-        t.description,
-        t.priority,
-        t.due_date,
-        t.status,
-        CASE WHEN t.status = 'Completed' THEN 1 ELSE 0 END AS done
-      FROM tasks t
-      WHERE t.company_id = ?
-      ORDER BY t.due_date ASC, t.created_at DESC
-      LIMIT 200
-    `, [company.id])
-    : await queryAll(`
+  const tasks = await queryAll(`
       SELECT t.id, t.title, t.description, t.priority, t.due_date, t.status, t.done
       FROM tasks t
       LEFT JOIN leads l ON l.id = t.lead_id
@@ -88,16 +45,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       LIMIT 200
     `, [company.id]);
 
-  const notes = isPostgresDb()
-    ? await queryAll(`
-      SELECT n.id, n.content, n.created_at, u.name AS user_name
-      FROM notes n
-      LEFT JOIN users u ON u.id = n.created_by
-      WHERE n.company_id = ?
-      ORDER BY n.created_at DESC
-      LIMIT 200
-    `, [company.id])
-    : await queryAll(`
+  const notes = await queryAll(`
       SELECT n.id, n.content, n.created_at, u.name AS user_name
       FROM notes n
       LEFT JOIN leads l ON l.id = n.lead_id
@@ -108,13 +56,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     `, [company.id]);
 
   const documents = (await hasTable('documents'))
-    ? await queryAll(isPostgresDb() ? `
-      SELECT id, name AS title, file_name, mime_type AS file_type, NULL::text AS file_url, created_at
-      FROM documents
-      WHERE company_id = ?
-      ORDER BY created_at DESC
-      LIMIT 200
-    ` : `
+    ? await queryAll(`
       SELECT id, title, file_name, file_type, file_url, created_at
       FROM documents
       WHERE company_id = ?
@@ -123,7 +65,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     `, [company.id])
     : [];
 
-  const opportunities = isPostgresDb() ? [] : (await hasTable('opportunities'))
+  const opportunities = (await hasTable('opportunities'))
     ? await queryAll(`
       SELECT id, title, stage, value, created_at
       FROM opportunities
@@ -133,7 +75,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     `, [company.id])
     : [];
 
-  const quotes = isPostgresDb() ? [] : await queryAll(`
+  const quotes = await queryAll(`
     SELECT q.id, q.quote_number, q.status, q.total, q.created_at
     FROM quotes q
     LEFT JOIN leads l ON l.id = q.lead_id
@@ -142,7 +84,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     LIMIT 200
   `, [company.id]);
 
-  const campaignHistory = isPostgresDb() ? [] : await queryAll(`
+  const campaignHistory = await queryAll(`
     SELECT a.id, a.activity_type, a.date, cp.campaign_name
     FROM activities a
     LEFT JOIN leads l ON l.id = a.lead_id
@@ -160,13 +102,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       ORDER BY created_at DESC
       LIMIT 200
     `, [company.id])
-    : await queryAll(isPostgresDb() ? `
-      SELECT a.id, a.date AS created_at, COALESCE(a.description, a.subject) AS notes
-      FROM activities a
-      WHERE a.company_id = ? AND lower(a.type::text) = 'call'
-      ORDER BY a.date DESC
-      LIMIT 200
-    ` : `
+    : await queryAll(`
       SELECT a.id, a.date AS created_at, a.notes
       FROM activities a
       LEFT JOIN leads l ON l.id = a.lead_id
@@ -198,26 +134,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = (await req.json()) as Record<string, unknown>;
 
-  const postgres = isPostgresDb();
   const fields = Object.keys(body).filter((key) => key !== 'id');
   if (fields.length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
 
-  const setClause = fields
-    .map((field) => {
-      // Cast status to the enum type on PostgreSQL.
-      if (postgres && field === 'status') return `${field} = ?::crm_company_status`;
-      return `${field} = ?`;
-    })
-    .join(', ');
+  const setClause = fields.map((field) => `${field} = ?`).join(', ');
   const values = fields.map((field) => {
     const value = body[field];
     if (typeof value === 'boolean') return value ? 1 : 0;
     return value as string | number | null;
   });
   await runStatement(
-    postgres
-      ? `UPDATE companies SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-      : `UPDATE companies SET ${setClause}, updated_at = datetime('now') WHERE id = ?`,
+    `UPDATE companies SET ${setClause}, updated_at = datetime('now') WHERE id = ?`,
     [...values, id]
   );
 

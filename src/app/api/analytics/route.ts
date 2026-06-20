@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getDb } from '@/lib/db';
+import { queryAll, queryOne } from '@/lib/db-client';
 
 function ratio(numerator: number, denominator: number) {
   if (!denominator) return 0;
@@ -12,14 +12,12 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
-  const db = getDb();
+  const connectionsSent = (await queryOne<{ c: number }>(`SELECT COUNT(*) as c FROM activities WHERE activity_type = 'connection_sent'`))!.c;
+  const accepted = (await queryOne<{ c: number }>(`SELECT COUNT(*) as c FROM activities WHERE activity_type = 'accepted'`))!.c;
+  const replied = (await queryOne<{ c: number }>(`SELECT COUNT(*) as c FROM activities WHERE activity_type = 'replied'`))!.c;
+  const meetingsBooked = (await queryOne<{ c: number }>(`SELECT COUNT(*) as c FROM activities WHERE activity_type = 'meeting_booked'`))!.c;
 
-  const connectionsSent = (db.prepare(`SELECT COUNT(*) as c FROM activities WHERE activity_type = 'connection_sent'`).get() as { c: number }).c;
-  const accepted = (db.prepare(`SELECT COUNT(*) as c FROM activities WHERE activity_type = 'accepted'`).get() as { c: number }).c;
-  const replied = (db.prepare(`SELECT COUNT(*) as c FROM activities WHERE activity_type = 'replied'`).get() as { c: number }).c;
-  const meetingsBooked = (db.prepare(`SELECT COUNT(*) as c FROM activities WHERE activity_type = 'meeting_booked'`).get() as { c: number }).c;
-
-  const platformPublishing = db.prepare(`
+  const platformPublishing = await queryAll(`
     SELECT platform,
       COUNT(*) as total,
       SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) as published,
@@ -27,9 +25,16 @@ export async function GET() {
     FROM content_posts
     GROUP BY platform
     ORDER BY platform ASC
-  `).all();
+  `);
 
-  const campaignPerformance = db.prepare(`
+  const campaignPerformance = await queryAll<{
+    id: number;
+    campaign_name: string;
+    connections_sent: number;
+    accepted: number;
+    replied: number;
+    meetings: number;
+  }>(`
     SELECT c.id, c.campaign_name,
       SUM(CASE WHEN a.activity_type = 'connection_sent' THEN 1 ELSE 0 END) as connections_sent,
       SUM(CASE WHEN a.activity_type = 'accepted' THEN 1 ELSE 0 END) as accepted,
@@ -39,14 +44,7 @@ export async function GET() {
     LEFT JOIN activities a ON a.campaign_id = c.id
     GROUP BY c.id
     ORDER BY c.created_at DESC
-  `).all() as Array<{
-    id: number;
-    campaign_name: string;
-    connections_sent: number;
-    accepted: number;
-    replied: number;
-    meetings: number;
-  }>;
+  `);
 
   const campaigns = campaignPerformance.map((row) => ({
     ...row,

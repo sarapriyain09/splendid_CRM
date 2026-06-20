@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
+import { queryAll, queryOne, runStatement } from '@/lib/db-client';
 import type { Activity } from '@/lib/types';
 
 const LINKEDIN_STATUS_BY_ACTIVITY: Record<string, string> = {
@@ -71,23 +71,13 @@ export async function POST(req: NextRequest) {
   ] as const;
 
   let activity: Record<string, unknown> | undefined;
-  if (isPostgresDb()) {
-    activity = await queryOne(
-      `INSERT INTO activities
-        (contact_id, lead_id, campaign_id, activity_type, date, notes, metadata_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       RETURNING *`,
-      [...values]
-    );
-  } else {
-    const result = await runStatement(
-      `INSERT INTO activities
-        (contact_id, lead_id, campaign_id, activity_type, date, notes, metadata_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [...values]
-    );
-    activity = await queryOne('SELECT * FROM activities WHERE id = ?', [Number(result.lastInsertId)]);
-  }
+  const result = await runStatement(
+    `INSERT INTO activities
+      (contact_id, lead_id, campaign_id, activity_type, date, notes, metadata_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [...values]
+  );
+  activity = await queryOne('SELECT * FROM activities WHERE id = ?', [Number(result.lastInsertId)]);
 
   const mappedStatus = LINKEDIN_STATUS_BY_ACTIVITY[body.activity_type.trim()];
   if (mappedStatus && body.contact_id) {
