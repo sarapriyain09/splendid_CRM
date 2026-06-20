@@ -138,9 +138,9 @@ export default function CompanyDetailPage() {
         }),
       });
 
-      const payload = await response.json();
+      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload?.error || 'Failed to update company');
+        throw new Error((payload as { error?: string })?.error || 'Failed to update company');
       }
 
       setData((prev: any) => ({ ...prev, company: payload }));

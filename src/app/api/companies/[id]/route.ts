@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { isAdminUser } from '@/lib/api-auth';
-import { hasTable, queryAll, queryOne, runStatement } from '@/lib/db-client';
+import { hasTable, isPostgresDb, queryAll, queryOne, runStatement } from '@/lib/db-client';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -66,13 +66,28 @@ export async function GET(_req: NextRequest, { params }: Params) {
     : [];
 
   const opportunities = (await hasTable('opportunities'))
-    ? await queryAll(`
+    ? await queryAll(
+        isPostgresDb()
+          ? `
+      SELECT id,
+             opportunity_name AS title,
+             status AS stage,
+             estimated_value AS value,
+             created_at
+      FROM opportunities
+      WHERE company_id = ?
+      ORDER BY created_at DESC
+      LIMIT 200
+    `
+          : `
       SELECT id, title, stage, value, created_at
       FROM opportunities
       WHERE company_id = ?
       ORDER BY created_at DESC
       LIMIT 200
-    `, [company.id])
+    `,
+        [company.id]
+      ).catch(() => [])
     : [];
 
   const quotes = await queryAll(`
@@ -134,7 +149,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = (await req.json()) as Record<string, unknown>;
 
-  const fields = Object.keys(body).filter((key) => key !== 'id');
+  const allowedColumns = [
+    'name',
+    'website',
+    'industry',
+    'country',
+    'source',
+    'employee_count',
+    'status',
+    'notes',
+    'linkedin_url',
+  ];
+
+  const fields = Object.keys(body).filter((key) => allowedColumns.includes(key));
   if (fields.length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
 
   const setClause = fields.map((field) => `${field} = ?`).join(', ');
@@ -143,8 +170,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (typeof value === 'boolean') return value ? 1 : 0;
     return value as string | number | null;
   });
+  const nowExpr = isPostgresDb() ? 'NOW()' : "datetime('now')";
   await runStatement(
-    `UPDATE companies SET ${setClause}, updated_at = datetime('now') WHERE id = ?`,
+    `UPDATE companies SET ${setClause}, updated_at = ${nowExpr} WHERE id = ?`,
     [...values, id]
   );
 

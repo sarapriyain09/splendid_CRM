@@ -8,19 +8,19 @@ const PLATFORM_APPS = [
   {
     key: 'sales',
     label: 'Sales',
-    href: 'https://sales.splendidtechnology.co.uk/',
+    href: 'https://sales.velynxia.com/',
     external: true,
   },
   {
     key: 'callcrm',
     label: 'CallCRM',
-    href: 'https://callcrm.splendidtechnology.co.uk/',
+    href: 'https://callcrm.velynxia.com/',
     external: true,
   },
   {
     key: 'marketing',
     label: 'Marketing',
-    href: 'https://marketing.splendidtechnology.co.uk/',
+    href: 'https://marketing.velynxia.com/',
     external: true,
   },
   { key: 'automation', label: 'Automation', href: '/automation' },
@@ -60,12 +60,12 @@ export default function Sidebar() {
     <aside className="sidebar-scroll w-60 flex-shrink-0 bg-[#0f1d33] border-r border-[#1d2f4f] flex flex-col h-screen sticky top-0 overflow-y-scroll">
       {/* Logo */}
       <div className="px-5 py-4 border-b border-[#1d2f4f]">
-        <div className="text-[10px] uppercase tracking-[0.14em] text-[#8ea6cf] mb-2">Splendid Growth Platform</div>
+        <div className="text-[10px] uppercase tracking-[0.14em] text-[#8ea6cf] mb-2">Velynxia Growth Platform</div>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#2f65c8] shadow-sm flex items-center justify-center text-white font-bold text-sm">ST</div>
           <div>
             <div className="text-sm font-bold text-[#edf3ff] leading-tight">CRM</div>
-            <div className="text-xs text-[#b8c8e6]">Splendid Technology</div>
+            <div className="text-xs text-[#b8c8e6]">Velynxia</div>
           </div>
         </div>
       </div>
